@@ -439,6 +439,18 @@ template `0x504DcDD8…`, shielded position `0xe0773065…`. Its 543.943 MUSD cl
 capital moved to the audited reserve, and it keeps its own implementation and reserve binding — which is
 the property the audit's position-reserve binding adds for every new position.
 
+### Mezo mainnet readiness
+
+Verified against live Mezo mainnet (chain **31612**): MUSD, the BTC ledger (whose `balanceOf` equals
+the native balance, the identity the engine relies on), the full trove stack, Mezo's
+`BorrowerOperationsSignatures` (EIP-712 domain identical to testnet apart from the chain id), and both
+venue pools — a stable MUSD pool with 7.70M MUSD of depth for the flash and a volatile MUSD/BTC pool
+with 102.98M MUSD for the swap. Gas on mainnet is 0.0014625 gwei, so deploying the whole audited stack
+costs **≈0.8 MUSD**; the only expensive step is Mezo's trove floor (2,000 MUSD of debt), which is what
+an on-mainnet Flash Loop would need. Details, numbers and the reversible cost ladder:
+**[`docs/MAINNET-READINESS.md`](docs/MAINNET-READINESS.md)** · re-run with
+`contracts/script/verify-mainnet.sh`.
+
 ### Real vs simulated — stated plainly
 
 | Surface | Status |
