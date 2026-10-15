@@ -1,4 +1,0 @@
-name	mezo
-mode	default
-files	./contracts/script/Deploy.s.sol ./contracts/script/Prove.s.sol ./contracts/src/PylonFlashEngine.sol ./contracts/src/PylonPosition.sol ./contracts/src/PylonReserve.sol ./contracts/src/libraries/Clones.sol ./contracts/src/libraries/PylonMath.sol 
-passes_planned	1
