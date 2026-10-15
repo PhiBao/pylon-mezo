@@ -454,6 +454,25 @@ and only upward.
 
 ## 9. Security and reliability
 
+A source-only audit was run after the build: twelve speciality lenses over the Solidity plus a
+boundary-first review of the service, HTTP and terminal layers. It produced 17 findings (1 high, 6
+medium, 6 low, 4 informational); 14 are fixed with regression tests, the rest are documented accepted
+risks. Full report, evidence and the deployment decisions: **[`docs/AUDIT.md`](docs/AUDIT.md)**.
+
+Highlights worth knowing before you read the code:
+
+* The paid `x402` endpoint is single-use per settlement, age-bounded, and rate-limited per client. A
+  settled transfer no longer unlocks unlimited requests.
+* `PylonReserve.setEngine` refuses a handover while defence loans are outstanding, and each position
+  captures its reserve at initialisation — so a governance action can no longer strand a position's
+  claim and lock its collateral.
+* Shield credit is now priced and bounded: a maximum shield ICR, a defence fee booked as lender yield,
+  and a per-position concentration cap on top of the per-call, per-position and utilisation caps.
+* The flash entrypoints refuse a venue that returns without servicing the callback, and the callback
+  payload must match the operation that started it.
+* Operator transactions are serialised, so a keeper defence and a manual operation cannot collide on a
+  nonce and silently replace one another.
+
 ### Trust model
 
 * **Non-custodial by construction.** Pylon never holds a user's collateral or keys. Native-trove

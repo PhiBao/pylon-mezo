@@ -84,6 +84,11 @@ contract MockPool is IPool {
     uint256 public reserve1;
     uint256 public blockTimestampLast;
 
+    /// @dev Test knobs that model a misbehaving venue: one that returns without servicing the flash
+    ///      callback, and one that hands the callback a payload for a different operation.
+    bool public skipHook;
+    bool public corruptOpByte;
+
     constructor(address t0, address t1, address factory_, bool stable_) {
         token0 = t0;
         token1 = t1;
@@ -94,6 +99,14 @@ contract MockPool is IPool {
     function setReserves(uint256 r0, uint256 r1) external {
         reserve0 = r0;
         reserve1 = r1;
+    }
+
+    function setSkipHook(bool v) external {
+        skipHook = v;
+    }
+
+    function setCorruptOpByte(bool v) external {
+        corruptOpByte = v;
     }
 
     function getReserves() external view returns (uint256, uint256, uint256) {
@@ -112,8 +125,19 @@ contract MockPool is IPool {
         require(amount0Out > 0 || amount1Out > 0, "no output");
         if (amount0Out > 0) MockERC20(token0).transfer(to, amount0Out);
         if (amount1Out > 0) MockERC20(token1).transfer(to, amount1Out);
+        if (skipHook) {
+            // Models a venue that transfers the output and returns without servicing the flash.
+            return;
+        }
         if (data.length > 0) {
-            IPoolCallee(to).hook(msg.sender, amount0Out, amount1Out, data);
+            if (corruptOpByte) {
+                // `HookPayload.op` is the first field of the tuple: byte 32 + 31 of the encoded data.
+                bytes memory mutated = data;
+                mutated[63] = 0x63; // an op the engine never started
+                IPoolCallee(to).hook(msg.sender, amount0Out, amount1Out, mutated);
+            } else {
+                IPoolCallee(to).hook(msg.sender, amount0Out, amount1Out, data);
+            }
         }
         uint256 balance0 = MockERC20(token0).balanceOf(address(this));
         uint256 balance1 = MockERC20(token1).balanceOf(address(this));

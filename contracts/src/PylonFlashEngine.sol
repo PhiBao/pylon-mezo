@@ -199,6 +199,10 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     /// @notice A nested leg of an atomic operation failed. Carries the stage and the inner revert
     ///         data so a caller (or the interface) can see exactly which leg broke.
     error StageFailed(uint8 stage, uint256 gasLeft, bytes reason);
+    /// @notice The callback payload does not describe the operation this engine started.
+    error PayloadMismatch();
+    /// @notice The flash venue returned without servicing the callback, so nothing was executed.
+    error FlashNotServiced();
 
     // ---------------------------------------------------------------------
     // Construction
@@ -505,6 +509,11 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
             address(this),
             abi.encode(payload)
         );
+
+        // `hook` clears `_op`. If it is still set, the venue returned without servicing the flash:
+        // no leg ran and the operation would have reported success having done nothing. Reverting also
+        // prevents `_op` from staying stuck for the caller's next attempt.
+        if (_op != OP_NONE) revert FlashNotServiced();
     }
 
     /// @inheritdoc IPoolCallee
@@ -518,6 +527,9 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         if (flashed != p.amountIn) revert UnexpectedFlashAmount(p.amountIn, flashed);
 
         uint8 op = _op;
+        // The payload must describe the operation the engine started. Without this check a payload
+        // could be decoded against a different op's expectations.
+        if (p.op != op) revert PayloadMismatch();
         _op = OP_NONE;
 
         if (op == OP_LOOP) {

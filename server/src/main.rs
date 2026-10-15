@@ -17,6 +17,7 @@ mod keeper;
 mod mezo;
 mod ops;
 mod radar;
+mod ratelimit;
 mod rpc;
 mod solver;
 mod store;
@@ -122,6 +123,10 @@ async fn main() -> Result<()> {
         mezo: mezo.clone(),
         radar: radar.clone(),
         store: store.clone(),
+        // Paid telemetry costs two upstream RPC reads per request; reads are cheaper but still
+        // touch the RPC layer, so both carry an explicit per-client budget.
+        paid_limiter: Arc::new(ratelimit::RateLimiter::new(30, std::time::Duration::from_secs(60))),
+        read_limiter: Arc::new(ratelimit::RateLimiter::new(240, std::time::Duration::from_secs(60))),
     };
 
     match cli.command.unwrap_or(Command::Serve) {
@@ -148,6 +153,8 @@ async fn main() -> Result<()> {
             let listener = tokio::net::TcpListener::bind(("0.0.0.0", cli.port))
                 .await
                 .with_context(|| format!("binding port {}", cli.port))?;
+            // ConnectInfo is required by the rate limiter, which keys on the client address.
+            let app = app.into_make_service_with_connect_info::<std::net::SocketAddr>();
             tracing::info!(port = cli.port, chain = config.chain_id, rpc = %config.rpc_url, "pylon api listening");
             axum::serve(listener, app).await?;
         }

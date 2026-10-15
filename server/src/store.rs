@@ -32,9 +32,13 @@ pub struct Proof {
 #[derive(Clone)]
 pub struct Store {
     path: PathBuf,
+    payments_path: PathBuf,
     inner: std::sync::Arc<RwLock<Vec<Proof>>>,
     next_id: std::sync::Arc<std::sync::atomic::AtomicU64>,
     positions: std::sync::Arc<RwLock<Vec<Address>>>,
+    /// Payment transaction hashes already spent on a paid request. A settled transfer buys exactly
+    /// one request: without this set the same proof unlocks the endpoint forever.
+    spent_payments: std::sync::Arc<RwLock<std::collections::HashSet<String>>>,
 }
 
 impl Store {
@@ -69,12 +73,55 @@ impl Store {
             }
         }
 
+        let payments_path = data_dir.join("spent-payments.jsonl");
+        let mut spent = std::collections::HashSet::new();
+        if let Ok(raw) = std::fs::read_to_string(&payments_path) {
+            for line in raw.lines() {
+                if let Ok(hash) = serde_json::from_str::<String>(line) {
+                    spent.insert(hash);
+                }
+            }
+        }
+
         Self {
             path,
+            payments_path,
             inner: std::sync::Arc::new(RwLock::new(proofs)),
             next_id: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(next_id)),
             positions: std::sync::Arc::new(RwLock::new(positions)),
+            spent_payments: std::sync::Arc::new(RwLock::new(spent)),
         }
+    }
+
+    /// Atomically claims a payment proof. Returns `false` when the hash was already spent, so a
+    /// replayed `X-PAYMENT-TX` is refused instead of unlocking a second request.
+    pub async fn claim_payment(&self, tx_hash: &str) -> bool {
+        let key = tx_hash.to_ascii_lowercase();
+        {
+            let mut spent = self.spent_payments.write().await;
+            if !spent.insert(key.clone()) {
+                return false;
+            }
+        }
+        use std::io::Write;
+        if let Ok(mut f) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&self.payments_path)
+        {
+            if let Ok(line) = serde_json::to_string(&key) {
+                writeln!(f, "{line}").ok();
+            }
+        }
+        true
+    }
+
+    #[cfg(test)]
+    pub async fn payments_are_spent(&self, tx_hash: &str) -> bool {
+        self.spent_payments
+            .read()
+            .await
+            .contains(&tx_hash.to_ascii_lowercase())
     }
 
     pub async fn all(&self) -> Vec<Proof> {
@@ -144,5 +191,31 @@ impl Store {
             }
         }
         Ok(proof)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn a_payment_proof_is_spendable_exactly_once() {
+        let dir = std::env::temp_dir().join(format!("pylon-store-test-{}", std::process::id()));
+        let store = Store::open(dir.clone());
+        let hash = "0xabc0000000000000000000000000000000000000000000000000000000000001";
+
+        assert!(store.claim_payment(hash).await, "first claim succeeds");
+        assert!(!store.claim_payment(hash).await, "replay is refused");
+        assert!(store.payments_are_spent(hash).await);
+        assert!(
+            store.claim_payment(&hash.to_uppercase()).await == false,
+            "case changes do not create a second claim"
+        );
+
+        // A fresh store over the same directory remembers the spend, so a restart is not a reset.
+        drop(store);
+        let reopened = Store::open(dir.clone());
+        assert!(!reopened.claim_payment(hash).await, "spend survives a restart");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

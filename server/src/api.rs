@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
-use axum::extract::{Path, Query, State};
+use axum::extract::{ConnectInfo, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::get;
@@ -15,6 +15,7 @@ use tower_http::cors::{Any, CorsLayer};
 use crate::config::Config;
 use crate::mezo::{fmt_btc, fmt_musd, Mezo};
 use crate::radar::Radar;
+use crate::ratelimit::RateLimiter;
 use crate::solver::Solver;
 use crate::store::Store;
 
@@ -24,6 +25,10 @@ pub struct AppState {
     pub mezo: Arc<Mezo>,
     pub radar: Arc<Radar>,
     pub store: Arc<Store>,
+    /// Paid requests cost two upstream RPC reads each, so they carry their own budget.
+    pub paid_limiter: Arc<RateLimiter>,
+    /// Read endpoints are cheap to serve but still hit the RPC layer.
+    pub read_limiter: Arc<RateLimiter>,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -350,11 +355,30 @@ struct PaymentRequirement {
     extra: serde_json::Value,
 }
 
+/// Payment proof, when settled directly on chain rather than signed through a facilitator.
+struct SettledPayment {
+    payer: Address,
+    block_time: u64,
+    amount: U256,
+}
+
 async fn x402_report(
     State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<std::net::SocketAddr>,
     Path(address): Path<String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
+    if !state.paid_limiter.allow(peer.ip()) {
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({
+                "error": "rate limited",
+                "detail": "Paid telemetry carries a per-client budget; retry after the window."
+            })),
+        )
+            .into_response();
+    }
+
     let Ok(trove_address) = address.parse::<Address>() else {
         return bad_request("invalid address");
     };
@@ -379,22 +403,23 @@ async fn x402_report(
         extra: serde_json::json!({"name": "Mezo USD", "version": "1"}),
     };
 
-    let payment_header = headers
-        .get("payment-signature")
-        .or_else(|| headers.get("x-payment"))
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_string);
     let payment_tx = headers
         .get("x-payment-tx")
         .and_then(|v| v.to_str().ok())
         .map(str::to_string);
+    let payment_signature = headers
+        .get("payment-signature")
+        .or_else(|| headers.get("x-payment"))
+        .and_then(|v| v.to_str().ok())
+        .map(str::to_string);
 
-    // Trustless path: a mined MUSD transfer to the pay-to address settles the request without any
-    // third party. This is what makes the endpoint verifiable rather than merely claimed.
+    let mut payer: Option<Address> = None;
+
     if let Some(tx_hash) = payment_tx {
-        match verify_onchain_payment(&state, &tx_hash, pay_to, price_musd).await {
-            Ok(true) => {}
-            Ok(false) => {
+        // Trustless path: the service verifies the settlement itself against a mined receipt.
+        let settled = match verify_onchain_payment(&state, &tx_hash, pay_to, price_musd).await {
+            Ok(Some(settled)) => settled,
+            Ok(None) => {
                 return (
                     StatusCode::PAYMENT_REQUIRED,
                     Json(serde_json::json!({
@@ -405,17 +430,65 @@ async fn x402_report(
                     .into_response();
             }
             Err(e) => return error_response(e).into_response(),
-        }
-    } else if let Some(signature) = payment_header {
-        if !verify_with_facilitator(&state, &signature, &requirement).await {
+        };
+
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let age = now.saturating_sub(settled.block_time);
+        if age > state.config.x402_max_age_secs {
             return (
                 StatusCode::PAYMENT_REQUIRED,
                 Json(serde_json::json!({
-                    "error": "payment could not be verified by the facilitator",
+                    "error": "payment proof is stale",
+                    "detail": format!("settled {age}s ago; the window is {}s", state.config.x402_max_age_secs),
                     "accepts": [requirement],
                 })),
             )
                 .into_response();
+        }
+
+        // Single-use: one settled transfer buys one request, so the proof cannot be replayed.
+        if !state.store.claim_payment(&tx_hash).await {
+            return (
+                StatusCode::PAYMENT_REQUIRED,
+                Json(serde_json::json!({
+                    "error": "payment proof already spent",
+                    "detail": "Each settled transfer authorises exactly one request.",
+                    "accepts": [requirement],
+                })),
+            )
+                .into_response();
+        }
+
+        payer = Some(settled.payer);
+    } else if let Some(signature) = payment_signature {
+        if !state.config.x402_allow_facilitator {
+            return (
+                StatusCode::PAYMENT_REQUIRED,
+                Json(serde_json::json!({
+                    "error": "facilitator settlement is disabled on this deployment",
+                    "detail": "Settle MUSD on chain and retry with `X-PAYMENT-TX`.",
+                    "accepts": [requirement],
+                })),
+            )
+                .into_response();
+        }
+        // A verify call proves a signature, not a payment: settle before serving, and only then
+        // consume the proof.
+        match settle_with_facilitator(&state, &signature, &requirement).await {
+            Some(tx_hash) if state.store.claim_payment(&tx_hash).await => {}
+            _ => {
+                return (
+                    StatusCode::PAYMENT_REQUIRED,
+                    Json(serde_json::json!({
+                        "error": "payment could not be verified and settled by the facilitator",
+                        "accepts": [requirement],
+                    })),
+                )
+                    .into_response();
+            }
         }
     } else {
         let header_value = base64::Engine::encode(
@@ -430,7 +503,7 @@ async fn x402_report(
                 "accepts": [requirement],
                 "instructions": [
                     "Settle 0.001 MUSD to the pay-to address on Mezo and retry with header `X-PAYMENT-TX: <txHash>`,",
-                    "or attach a signed x402 payment payload as `PAYMENT-SIGNATURE`."
+                    "or attach a signed x402 payment payload as `PAYMENT-SIGNATURE` where facilitator settlement is enabled."
                 ],
             })),
         )
@@ -442,7 +515,7 @@ async fn x402_report(
         return response;
     }
 
-    // Paid: produce the report.
+    // Paid: produce the report from live state.
     let trove = match state.mezo.trove(trove_address, None).await {
         Ok(t) => t,
         Err(e) => return error_response(e).into_response(),
@@ -469,29 +542,34 @@ async fn x402_report(
                 U256::from(11u64) * debt * U256::from(10u64).pow(U256::from(17u64)) / coll
             }.to_string(),
         },
-        "payer": pay_to,
+        "payer": payer.map(|p| format!("{p:#x}")),
+        "payTo": format!("{pay_to:#x}"),
         "settled": true,
         "note": "Telemetry is generated from live Mezo state at request time; the settlement is verifiable on-chain.",
     }))
     .into_response()
 }
 
+/// Verifies a settled MUSD transfer directly against a mined receipt: the payer, the block time and
+/// the transferred amount come from the chain, never from the caller.
 async fn verify_onchain_payment(
     state: &AppState,
     tx_hash: &str,
     pay_to: Address,
     amount: U256,
-) -> anyhow::Result<bool> {
+) -> anyhow::Result<Option<SettledPayment>> {
     let hash: alloy_primitives::B256 = tx_hash
         .trim()
         .parse()
         .map_err(|_| anyhow::anyhow!("invalid tx hash"))?;
     let Some(receipt) = state.mezo.rpc.receipt(hash).await? else {
-        return Ok(false);
+        return Ok(None);
     };
     if !receipt.succeeded() {
-        return Ok(false);
+        return Ok(None);
     }
+    // Block time bounds replay: an old transfer must not be recycled as a fresh payment.
+    let block_time = state.mezo.rpc.block_timestamp(receipt.block()).await.unwrap_or(0);
     // ERC-20 Transfer(from, to, value) log on the MUSD token.
     let logs = state.mezo.rpc.logs(hash).await?;
     let musd = state.mezo.c.musd;
@@ -503,36 +581,76 @@ async fn verify_onchain_payment(
         if topics[0].0[..4] != transfer_sig {
             continue;
         }
+        let from = Address::from_slice(&topics[1].0[12..]);
         let to = Address::from_slice(&topics[2].0[12..]);
         let value = U256::from_be_slice(&data);
         if to == pay_to && value >= amount {
-            return Ok(true);
+            return Ok(Some(SettledPayment {
+                payer: from,
+                block_time,
+                amount: value,
+            }));
         }
     }
-    Ok(false)
+    Ok(None)
 }
 
-async fn verify_with_facilitator(
+/// Settles through the facilitator and returns the settlement transaction hash.
+///
+/// `verify` only proves that a payload is well formed and correctly signed; it is not a payment. The
+/// resource is served only after `settle` reports success, and the returned hash is consumed like any
+/// other proof so it cannot be replayed.
+async fn settle_with_facilitator(
     state: &AppState,
     signature: &str,
     requirement: &PaymentRequirement,
-) -> bool {
-    let client = reqwest::Client::new();
+) -> Option<String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(20))
+        .build()
+        .ok()?;
     let body = serde_json::json!({
         "x402Version": 1,
         "paymentPayload": signature,
         "paymentRequirements": requirement,
     });
-    let url = format!("{}/verify", state.config.x402_facilitator.trim_end_matches('/'));
-    match client.post(url).json(&body).send().await {
-        Ok(resp) => resp
-            .json::<serde_json::Value>()
-            .await
-            .ok()
-            .and_then(|v| v.get("isValid").and_then(|b| b.as_bool()))
-            .unwrap_or(false),
-        Err(_) => false,
+    let base = state.config.x402_facilitator.trim_end_matches('/');
+
+    let verify: serde_json::Value = client
+        .post(format!("{base}/verify"))
+        .json(&body)
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+    if verify.get("isValid").and_then(|b| b.as_bool()) != Some(true) {
+        return None;
     }
+
+    let settle: serde_json::Value = client
+        .post(format!("{base}/settle"))
+        .json(&body)
+        .send()
+        .await
+        .ok()?
+        .json()
+        .await
+        .ok()?;
+    let succeeded = settle
+        .get("success")
+        .and_then(|b| b.as_bool())
+        .or_else(|| settle.get("status").and_then(|s| s.as_str()).map(|s| s == "success"))
+        .unwrap_or(false);
+    if !succeeded {
+        return None;
+    }
+    settle
+        .get("transaction")
+        .or_else(|| settle.get("txHash"))
+        .and_then(|t| t.as_str())
+        .map(|t| t.to_string())
 }
 
 // ---------------------------------------------------------------------------

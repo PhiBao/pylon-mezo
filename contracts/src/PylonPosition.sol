@@ -35,6 +35,12 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
     address public override owner;
     address public override engine;
 
+    /// @notice Shield reserve captured at initialisation.
+    /// @dev Reading it from the engine on every call would let a later engine handover re-point
+    ///      `repayReserve` at a reserve that has no record of this position's loan, which would make
+    ///      the claim unpayable and lock the collateral. The binding is fixed here instead.
+    address public reserve;
+
     IMUSD public musd;
     IERC20 public btc;
     IBorrowerOperations public borrowerOps;
@@ -61,6 +67,10 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
     }
 
     ShieldPolicy public policy;
+
+    /// @notice Highest ICR a shield may target or trigger on. The band exists to keep a position away
+    ///         from the redemption tail, not to grant an unbounded credit line.
+    uint64 public constant MAX_SHIELD_ICR = 5e18;
 
     event Initialized(address indexed owner, address indexed engine);
     event Opened(uint256 btcCollateral, uint256 musdDebt);
@@ -101,11 +111,16 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
     function initialize(address owner_, address engine_) external override {
         if (owner != address(0)) revert AlreadyInitialized();
         if (owner_ == address(0) || engine_ == address(0)) revert ZeroAddress();
+        // Only the engine may initialise a position, so a stray clone can never be claimed by a third
+        // party between creation and wiring.
+        if (msg.sender != engine_) revert OnlyEngine();
 
         owner = owner_;
         engine = engine_;
 
         IPylonEngine e = IPylonEngine(engine_);
+        reserve = e.reserve();
+        if (reserve == address(0)) revert ZeroAddress();
         musd = IMUSD(e.musd());
         btc = IERC20(e.btc());
         borrowerOps = IBorrowerOperations(e.borrowerOps());
@@ -167,6 +182,7 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
     /// @notice Withdraws collateral. Blocked while a reserve defence loan is outstanding, so the
     ///         shield's claim is always settled before collateral leaves the position.
     function withdrawCollateral(uint256 amount, address to) external onlyOwner nonReentrant {
+        if (to == address(0)) revert ZeroAddress();
         if (reserveDebt != 0) revert ReserveDebtOutstanding();
         (address upper, address lower) = _hintsForWithdraw(amount);
         uint256 before = btc.balanceOf(address(this));
@@ -194,7 +210,12 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
     // ---------------------------------------------------------------------
 
     function setShield(bool enabled, uint64 triggerICR, uint64 targetICR, uint128 maxPerCall) external onlyOwner {
+        // Upper bounds matter as much as the lower ones: an unbounded target would let a position ask
+        // the reserve to repay its entire debt in one call, and an unbounded trigger would arm a band
+        // above every reachable ratio so the reserve can be treated as an open credit line.
         if (enabled && (targetICR <= triggerICR || triggerICR < 1.1e18)) revert BadShieldConfig();
+        if (enabled && (targetICR > MAX_SHIELD_ICR || triggerICR > MAX_SHIELD_ICR)) revert BadShieldConfig();
+        if (enabled && maxPerCall == 0) revert BadShieldConfig();
         policy = ShieldPolicy({
             enabled: enabled,
             triggerICR: triggerICR,
@@ -227,15 +248,22 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
         repaid = want < available ? want : available;
         if (repaid == 0) revert NothingToRepay();
 
+        // The reserve withholds a defence fee, so the amount that can be repaid is what actually
+        // arrives; the loan itself is booked in full.
+        uint256 before = musd.balanceOf(address(this));
         r.lendTo(repaid);
+        uint256 received = musd.balanceOf(address(this)) - before;
+        if (received == 0) revert NothingToRepay();
         reserveDebt += repaid;
 
-        (address upper, address lower) = _hintsForRepay(repaid);
-        borrowerOps.repayMUSD(repaid, upper, lower);
+        (address upper, address lower) = _hintsForRepay(received);
+        borrowerOps.repayMUSD(received, upper, lower);
 
-        uint256 postICR = PylonMath.collateralRatio(coll, debt - repaid, price);
-        if (postICR <= icr) revert NoImprovement();
-        emit Defended(repaid, icr, postICR, reserveDebt);
+        uint256 postICR = PylonMath.collateralRatio(coll, debt - received, price);
+        // A defence that moves the ratio by a rounding amount burns a keeper slot and the position's
+        // borrowing room without changing its risk. Require a material improvement.
+        if (postICR * 10_000 < icr * 10_200) revert NoImprovement();
+        emit Defended(received, icr, postICR, reserveDebt);
     }
 
     // ---------------------------------------------------------------------
@@ -295,14 +323,9 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
         icr = PylonMath.collateralRatio(coll, debt, price);
     }
 
-    function reserve() external view override returns (address) {
-        return engine_reserve();
-    }
-
-    /// @dev The reserve address is read from the engine on demand so a single `setReserve` call on
-    ///      the engine re-points every position at once.
+    /// @dev The reserve is fixed at initialisation; see the `reserve` field for why.
     function engine_reserve() internal view returns (address) {
-        return IPylonEngine(engine).reserve();
+        return reserve;
     }
 
     function isActive() external view returns (bool) {

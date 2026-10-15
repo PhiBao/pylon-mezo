@@ -55,6 +55,18 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     /// @notice Maximum share of total assets that may be lent out, in basis points.
     uint256 public utilizationCapBps = 9_000;
 
+    /// @notice Maximum share of total assets a single position may hold, in basis points. Without it
+    ///         one borrower can occupy the whole reserve, which denies every other position a defence.
+    uint256 public maxPerPositionBps = 2_000;
+
+    /// @notice Fee withheld when a defence loan is issued, in basis points of the loan. The position
+    ///         owes the full amount and receives the remainder, so the reserve prices the credit
+    ///         without an interest-accrual model.
+    uint256 public defenceFeeBps = 50;
+
+    /// @notice Hard ceiling for the defence fee.
+    uint256 public constant MAX_DEFENCE_FEE_BPS = 500;
+
     // ---------------------------------------------------------------------
     // Events
     // ---------------------------------------------------------------------
@@ -66,6 +78,7 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     event Repaid(address indexed position, uint256 amount, uint256 remaining);
     event PositionRegistered(address indexed position);
     event LimitsUpdated(uint256 maxLendPerCall, uint256 maxLendPerPosition, uint256 utilizationCapBps);
+    event ConcentrationUpdated(uint256 maxPerPositionBps, uint256 defenceFeeBps);
     event EngineUpdated(address indexed engine);
 
     // ---------------------------------------------------------------------
@@ -76,9 +89,11 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     error ZeroAmount();
     error NotEngine();
     error NotPosition();
-    error NotPositionOwner();
+    error NotShareOwner();
     error CapExceeded();
     error UtilizationExceeded();
+    error OutstandingLoans();
+    error FeeTooHigh();
     error InsufficientLiquidity();
     error NothingToRepay();
 
@@ -93,10 +108,22 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     // Governance
     // ---------------------------------------------------------------------
 
+    /// @dev A handover is refused while defence loans are outstanding. Positions read the reserve
+    ///      through the engine, so re-pointing the engine at a different reserve while loans are live
+    ///      would leave those loans unpayable and their collateral permanently locked.
     function setEngine(address engine_) external onlyOwner {
         if (engine_ == address(0)) revert ZeroAddress();
+        if (outstanding != 0) revert OutstandingLoans();
         engine = engine_;
         emit EngineUpdated(engine_);
+    }
+
+    function setConcentration(uint256 maxPerPositionBps_, uint256 defenceFeeBps_) external onlyOwner {
+        if (defenceFeeBps_ > MAX_DEFENCE_FEE_BPS) revert FeeTooHigh();
+        if (maxPerPositionBps_ > 10_000) revert CapExceeded();
+        maxPerPositionBps = maxPerPositionBps_;
+        defenceFeeBps = defenceFeeBps_;
+        emit ConcentrationUpdated(maxPerPositionBps_, defenceFeeBps_);
     }
 
     function setLimits(uint256 maxLendPerCall_, uint256 maxLendPerPosition_, uint256 utilizationCapBps_) external onlyOwner {
@@ -165,7 +192,7 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
         if (receiver == address(0)) revert ZeroAddress();
         if (msg.sender != shareOwner) {
             // no allowance plumbing: shares are not transferable, so only the owner may redeem
-            revert NotPositionOwner();
+            revert NotShareOwner();
         }
         if (shareAmount == 0) revert ZeroAmount();
         assets = convertToAssets(shareAmount);
@@ -177,15 +204,26 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     }
 
     /// @notice Maximum MUSD the reserve will currently lend to `position`.
+    /// @dev Four independent ceilings: per call, per position, per position as a share of total
+    ///      assets, and utilisation of total assets.
     function availableToLend(address position) public view override returns (uint256) {
         if (!positions[position]) return 0;
         uint256 idle = idleLiquidity();
-        uint256 allowedByUtilization = (totalAssets() * utilizationCapBps) / 10_000;
+        uint256 assets = totalAssets();
+
+        uint256 allowedByUtilization = (assets * utilizationCapBps) / 10_000;
         if (outstanding >= allowedByUtilization) return 0;
         uint256 roomAsset = allowedByUtilization - outstanding;
+
+        uint256 allowedByConcentration = (assets * maxPerPositionBps) / 10_000;
+        if (loans[position] >= allowedByConcentration) return 0;
+        uint256 roomConcentration = allowedByConcentration - loans[position];
+
         uint256 loanRoom = loans[position] >= maxLendPerPosition ? 0 : maxLendPerPosition - loans[position];
+
         uint256 cap = maxLendPerCall;
         if (roomAsset < cap) cap = roomAsset;
+        if (roomConcentration < cap) cap = roomConcentration;
         if (loanRoom < cap) cap = loanRoom;
         if (idle < cap) cap = idle;
         return cap;
@@ -203,13 +241,24 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
         if (amount == 0) revert ZeroAmount();
         if (amount > maxLendPerCall) revert CapExceeded();
         if (loans[msg.sender] + amount > maxLendPerPosition) revert CapExceeded();
-        uint256 allowed = (totalAssets() * utilizationCapBps) / 10_000;
-        if (outstanding + amount > allowed) revert UtilizationExceeded();
+
+        uint256 assets = totalAssets();
+        if (outstanding + amount > (assets * utilizationCapBps) / 10_000) revert UtilizationExceeded();
+        if (loans[msg.sender] + amount > (assets * maxPerPositionBps) / 10_000) {
+            revert UtilizationExceeded();
+        }
         if (amount > idleLiquidity()) revert InsufficientLiquidity();
 
+        // The position owes the full amount and receives it less the defence fee, so the reserve earns
+        // its spread from the first second of the loan instead of relying on an accrual model.
+        uint256 fee = (amount * defenceFeeBps) / 10_000;
         loans[msg.sender] += amount;
         outstanding += amount;
-        musd.transfer(msg.sender, amount);
+        musd.transfer(msg.sender, amount - fee);
+        if (fee > 0) {
+            feesReceived += fee;
+            emit FeeReceived(msg.sender, fee);
+        }
         emit Lent(msg.sender, amount, outstanding);
     }
 

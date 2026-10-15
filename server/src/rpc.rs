@@ -182,6 +182,15 @@ impl Rpc {
         parse_hex_u64(v.as_str().unwrap_or("0x0"))
     }
 
+    /// Unix timestamp of a mined block, used to bound how old a payment proof may be.
+    pub async fn block_timestamp(&self, block: u64) -> Result<u64> {
+        let v = self
+            .request("eth_getBlockByNumber", json!([format!("0x{block:x}"), false]))
+            .await?;
+        let ts = v.get("timestamp").and_then(|t| t.as_str()).unwrap_or("0x0");
+        parse_hex_u64(ts)
+    }
+
     pub async fn gas_price(&self) -> Result<U256> {
         let v = self.request("eth_gasPrice", json!([])).await?;
         Ok(U256::from_be_slice(

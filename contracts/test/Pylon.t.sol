@@ -382,8 +382,17 @@ contract PylonTest is Test {
         assertEq(PylonPosition(payable(position)).reserveDebt(), repaid, "claim recorded on the position");
         assertEq(reserve.loans(position), repaid, "loan recorded on the reserve");
         assertEq(reserve.outstanding(), repaid, "outstanding updated");
-        assertEq(troveManager.getTroveDebt(position), debtBefore - repaid, "debt reduced by the reserve");
-        assertGt(PylonMath.collateralRatio(1e18 + collAdd, debtBefore - repaid, 40_000e18), 1.99e18, "ICR restored to target");
+
+        // The reserve withholds its defence fee, so the debt falls by the amount received, not by the
+        // booked loan. The difference is reserve yield.
+        uint256 fee = (repaid * reserve.defenceFeeBps()) / 10_000;
+        assertEq(troveManager.getTroveDebt(position), debtBefore - (repaid - fee), "debt reduced by the received MUSD");
+        assertEq(reserve.feesReceived(), (repayAmountFee()), "defence fee booked as reserve yield");
+        assertGt(
+            PylonMath.collateralRatio(1e18 + collAdd, debtBefore - repaid, 40_000e18),
+            1.9e18,
+            "ICR materially restored"
+        );
 
         // collateral cannot leave while the claim is outstanding
         vm.prank(bob);
@@ -437,7 +446,7 @@ contract PylonTest is Test {
         vm.stopPrank();
 
         vm.prank(bob);
-        PylonPosition(payable(position)).setShield(true, 5e18, 6e18, 10_000e18);
+        PylonPosition(payable(position)).setShield(true, 1.9e18, 2.2e18, 10_000e18);
         // force a defence by dropping the price
         priceFeed.setPrice(20_000e18);
         PylonPosition(payable(position)).defend();
@@ -524,12 +533,194 @@ contract PylonTest is Test {
         vm.stopPrank();
 
         address position = engine.createPosition(bob);
-        assertEq(reserve.availableToLend(position), 900e18, "available is capped at 90% of assets");
+        // A 1,000 MUSD reserve with a 20% concentration cap can offer at most 200 MUSD to one
+        // position, even though the utilisation cap would allow 900.
+        assertEq(reserve.availableToLend(position), 200e18, "concentration cap binds before utilisation");
 
         uint256 overCap = reserve.maxLendPerCall() + 1;
         vm.prank(position);
         vm.expectRevert(PylonReserve.CapExceeded.selector);
         reserve.lendTo(overCap);
+    }
+
+    // ---------------------------------------------------------------------
+    // Audit hardening regressions
+    // ---------------------------------------------------------------------
+
+    function test_flash_revertsWhenVenueDoesNotServiceTheCallback() public {
+        troveManager.setTrove(alice, 1e18, 25_000e18, 1);
+        (uint256 debtDelta, ) = engine.previewLoopDebtForCollateral(0.005e18);
+        flashPool.setSkipHook(true);
+
+        vm.expectRevert(PylonFlashEngine.FlashNotServiced.selector);
+        engine.loopSigned(
+            PylonFlashEngine.LoopRequest({
+                owner: alice,
+                debtAmount: debtDelta,
+                collAdd: 0.005e18,
+                outputTo: alice,
+                minPostICR: 0,
+                deadline: block.timestamp + 1 hours,
+                upperHint: address(0),
+                lowerHint: address(0),
+                signature: bytes("")
+            })
+        );
+
+        // Once the venue behaves, the same request succeeds: the guard rejects a silent no-op, it does
+        // not break the flow.
+        flashPool.setSkipHook(false);
+        vm.prank(alice);
+        engine.loopSigned(
+            PylonFlashEngine.LoopRequest({
+                owner: alice,
+                debtAmount: debtDelta,
+                collAdd: 0.005e18,
+                outputTo: alice,
+                minPostICR: 0,
+                deadline: block.timestamp + 1 hours,
+                upperHint: address(0),
+                lowerHint: address(0),
+                signature: bytes("")
+            })
+        );
+        assertEq(troveManager.getTroveColl(alice), 1e18 + 0.005e18);
+    }
+
+    function test_flash_revertsWhenPayloadDescribesAnotherOperation() public {
+        troveManager.setTrove(alice, 1e18, 25_000e18, 1);
+        (uint256 debtDelta, ) = engine.previewLoopDebtForCollateral(0.005e18);
+        flashPool.setCorruptOpByte(true);
+
+        vm.expectRevert(PylonFlashEngine.PayloadMismatch.selector);
+        engine.loopSigned(
+            PylonFlashEngine.LoopRequest({
+                owner: alice,
+                debtAmount: debtDelta,
+                collAdd: 0.005e18,
+                outputTo: alice,
+                minPostICR: 0,
+                deadline: block.timestamp + 1 hours,
+                upperHint: address(0),
+                lowerHint: address(0),
+                signature: bytes("")
+            })
+        );
+    }
+
+    function test_reserve_refusesEngineHandoverWithLiveLoans() public {
+        address position = engine.createPosition(bob);
+        vm.startPrank(lp);
+        musd.mint(lp, 1_000e18);
+        musd.approve(address(reserve), 1_000e18);
+        reserve.deposit(1_000e18, lp);
+        vm.stopPrank();
+
+        vm.prank(position);
+        reserve.lendTo(100e18);
+        assertEq(reserve.outstanding(), 100e18);
+
+        // Re-pointing the engine while a loan is live would strand the position's claim.
+        vm.expectRevert(PylonReserve.OutstandingLoans.selector);
+        reserve.setEngine(address(0xDEAD));
+
+        // After settlement the handover is allowed again.
+        vm.prank(position);
+        musd.mint(position, 100e18);
+        vm.prank(position);
+        musd.transfer(address(reserve), 100e18);
+        vm.prank(position);
+        reserve.recordRepayment(100e18);
+        reserve.setEngine(address(engine));
+        assertEq(reserve.engine(), address(engine));
+    }
+
+    function test_reserve_concentrationCapLimitsOnePosition() public {
+        address first = engine.createPosition(bob);
+        address second = engine.createPosition(alice);
+
+        vm.startPrank(lp);
+        musd.mint(lp, 1_000e18);
+        musd.approve(address(reserve), 1_000e18);
+        reserve.deposit(1_000e18, lp);
+        vm.stopPrank();
+
+        // 20% of 1,000 assets is the ceiling for one position, even though utilisation allows 900.
+        vm.prank(first);
+        reserve.lendTo(200e18);
+        assertLt(reserve.availableToLend(first), 1e18, "first position is at its share of the pool");
+        assertLe(
+            reserve.availableToLend(second),
+            (reserve.totalAssets() * reserve.maxPerPositionBps()) / 10_000,
+            "the cap is per position, not global"
+        );
+    }
+
+    function test_reserve_refusesDefenceFeeAboveItsCeiling() public {
+        vm.expectRevert(PylonReserve.FeeTooHigh.selector);
+        reserve.setConcentration(2_000, 501);
+        reserve.setConcentration(2_000, 100);
+        assertEq(reserve.defenceFeeBps(), 100);
+    }
+
+    function test_position_shieldRejectsOutOfRangeBands() public {
+        address position = engine.createPosition(bob);
+        vm.startPrank(bob);
+        vm.expectRevert(PylonPosition.BadShieldConfig.selector);
+        PylonPosition(payable(position)).setShield(true, 5.5e18, 6e18, 1_000e18);
+        vm.expectRevert(PylonPosition.BadShieldConfig.selector);
+        PylonPosition(payable(position)).setShield(true, 1.2e18, 1.1e18, 1_000e18);
+        vm.expectRevert(PylonPosition.BadShieldConfig.selector);
+        PylonPosition(payable(position)).setShield(true, 1.2e18, 1.4e18, 0);
+        PylonPosition(payable(position)).setShield(true, 1.2e18, 1.4e18, 1_000e18);
+        vm.stopPrank();
+    }
+
+    function test_defence_mustImproveTheRatioMaterially() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 1e18}(25_000e18);
+
+        vm.startPrank(lp);
+        musd.mint(lp, 1_000e18);
+        musd.approve(address(reserve), 1_000e18);
+        reserve.deposit(1_000e18, lp);
+        vm.stopPrank();
+
+        // A one-wei defence cannot move the ratio, so it must be refused rather than consume a slot.
+        // A one-wei ceiling caps a real defence to a rounding amount; the guard must refuse it.
+        vm.prank(bob);
+        PylonPosition(payable(position)).setShield(true, 2e18, 2.5e18, 100);
+        priceFeed.setPrice(40_000e18);
+        vm.expectRevert(PylonPosition.NoImprovement.selector);
+        PylonPosition(payable(position)).defend();
+    }
+
+    function test_position_initializeIsEngineOnly() public {
+        PylonPosition implementation = new PylonPosition();
+        vm.prank(alice);
+        vm.expectRevert(PylonPosition.OnlyEngine.selector);
+        implementation.initialize(alice, address(engine));
+    }
+
+    function test_position_withdrawRefusesZeroAddress() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 1e18}(25_000e18);
+        vm.prank(bob);
+        vm.expectRevert(PylonPosition.ZeroAddress.selector);
+        PylonPosition(payable(position)).withdrawCollateral(0.001e18, address(0));
+    }
+
+    function test_position_bindsItsReserveAtInitialisation() public {
+        address position = engine.createPosition(bob);
+        assertEq(PylonPosition(payable(position)).reserve(), address(reserve), "reserve captured at initialisation");
+        // A later engine re-point cannot move the position's claim to another reserve.
+        engine.setReserve(address(0xBEEF));
+        assertEq(PylonPosition(payable(position)).reserve(), address(reserve), "binding is immutable");
+        engine.setReserve(address(reserve));
     }
 
     // ---------------------------------------------------------------------
@@ -551,6 +742,11 @@ contract PylonTest is Test {
         uint256 price = 100_000e18;
         assertEq(PylonMath.debtAtRatio(coll, price, 2e18), 50_000e18, "half the collateral value");
         assertEq(PylonMath.collateralRatio(coll, 50_000e18, price), 2e18, "round trip");
+    }
+
+    /// @dev Defence fee the reserve withholds on the loan under test.
+    function repayAmountFee() internal view returns (uint256) {
+        return reserve.feesReceived();
     }
 
     /// @dev Mirrors the engine's flash-fee formula so tests can assert exact accounting.

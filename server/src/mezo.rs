@@ -147,11 +147,20 @@ pub struct Mezo {
     pub rpc: Rpc,
     pub c: ContractSet,
     pub chain_id: u64,
+    /// Serialises operator transactions. The nonce is read, signed and submitted inside this lock, so
+    /// two concurrent senders (a keeper cycle and a manual operation) cannot be handed the same nonce
+    /// and silently replace each other's transaction.
+    send_lock: tokio::sync::Mutex<()>,
 }
 
 impl Mezo {
     pub fn new(rpc: Rpc, chain_id: u64, c: ContractSet) -> Self {
-        Self { rpc, c, chain_id }
+        Self {
+            rpc,
+            c,
+            chain_id,
+            send_lock: tokio::sync::Mutex::new(()),
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -635,7 +644,14 @@ impl Mezo {
         self.rpc.call_from_full(Some(from), to, value, data).await
     }
 
-    pub async fn send(&self, private_key: &str, to: Address, value: U256, data: Vec<u8>) -> Result<(B256, crate::rpc::Receipt)> {
+    pub async fn send(
+        &self,
+        private_key: &str,
+        to: Address,
+        value: U256,
+        data: Vec<u8>,
+    ) -> Result<(B256, crate::rpc::Receipt)> {
+        let _guard = self.send_lock.lock().await;
         let key = eip712::signing_key(private_key)?;
         let from = eip712::address_from_key(private_key)?;
         let nonce = self.rpc.nonce(from).await?;

@@ -29,7 +29,7 @@ pub struct Deployment {
     pub deployer: Address,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Config {
     pub chain_id: u64,
     pub rpc_url: String,
@@ -43,6 +43,29 @@ pub struct Config {
     pub x402_pay_to: Option<Address>,
     pub x402_facilitator: String,
     pub x402_price: String,
+    /// A payment proof is only accepted while the settling block is this fresh, so an old transfer
+    /// cannot be recycled as a payment much later.
+    pub x402_max_age_secs: u64,
+    /// The facilitator `verify` call proves a signature, not a settlement. The path stays off unless
+    /// an operator explicitly enables it, and it always settles before serving the resource.
+    pub x402_allow_facilitator: bool,
+}
+
+/// `Config` holds the operator private key, so `Debug` must never print it. A derived `Debug` would
+/// leak the key the first time anyone logged the struct.
+impl std::fmt::Debug for Config {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Config")
+            .field("chain_id", &self.chain_id)
+            .field("rpc_url", &self.rpc_url)
+            .field("explorer", &self.explorer)
+            .field("port", &self.port)
+            .field("data_dir", &self.data_dir)
+            .field("operator_key", &self.operator_key.as_ref().map(|_| "<redacted>"))
+            .field("x402_pay_to", &self.x402_pay_to)
+            .field("x402_allow_facilitator", &self.x402_allow_facilitator)
+            .finish()
+    }
 }
 
 impl Config {
@@ -87,6 +110,13 @@ impl Config {
             x402_facilitator: std::env::var("X402_FACILITATOR")
                 .unwrap_or_else(|_| "https://facilitator.vativ.io".to_string()),
             x402_price: std::env::var("X402_PRICE").unwrap_or_else(|_| "$0.001".to_string()),
+            x402_max_age_secs: std::env::var("X402_MAX_AGE_SECS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(900),
+            x402_allow_facilitator: std::env::var("X402_ALLOW_FACILITATOR")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false),
         })
     }
 
