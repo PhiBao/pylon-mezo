@@ -89,9 +89,12 @@ flash venue address from the environment because it is chain-specific.
 
 ### Links
 
-* Live deployment: the terminal's static bundle (hosted link to be added at submission) — Mezo Testnet
-  reads work without a wallet or backend
-* Repository: `https://github.com/<owner>/pylon` (to be pushed; full history and this README included)
+* Live deployment: **https://phibao.github.io/pylon-mezo/** — the full terminal, running on live Mezo
+  Testnet reads with no wallet and no backend required
+* Repository: **https://github.com/PhiBao/pylon-mezo** (public; full history, tests, deployment record
+  and the engineering log)
+* Engine service (radar solver, keeper, x402): `cd server && cargo run --release -- serve` — the API the
+  hosted terminal uses when it is reachable
 * Product deck: `docs/PITCH.md`
 * 2-minute pitch video: `docs/DEMO_SCRIPT.md` (script and transaction index)
 * Diagram set: `docs/diagrams/01-atomic-paths.svg`, `02-redemption-queue.svg`, `03-system-map.svg`
@@ -107,7 +110,7 @@ flash venue address from the environment because it is chain-specific.
 
 ### Team
 
-Solo builder. *(Fill in name, role, X/LinkedIn before submitting.)*
+**PhiBao** (solo builder) — <https://github.com/PhiBao>
 
 ---
 

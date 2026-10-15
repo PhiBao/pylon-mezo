@@ -364,8 +364,11 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
 
 ### Deployed application
 
-* **Terminal:** static export (`cd web && pnpm build` → `web/out`), deployable to any static host.
-  Run it locally with `pnpm dev` (or `pnpm exec serve out` for the production bundle).
+* **Live terminal:** <https://phibao.github.io/pylon-mezo/> — fully functional on Mezo Testnet reads with
+  **no backend and no wallet** (the header shows `RPC READ-ONLY`). Hosted straight from `web/out` on
+  GitHub Pages.
+* **Local:** `cd web && pnpm dev` (or `pnpm exec serve out` for the production bundle). With the engine
+  service running the header switches to `ENGINE API` and the solver, keeper and x402 surfaces light up.
 * **Engine service:** `pylon-server serve` (Rust binary). Any host with outbound RPC works.
 * **Network:** Mezo Testnet, chain ID `31611`, explorer <https://explorer.test.mezo.org>.
 
