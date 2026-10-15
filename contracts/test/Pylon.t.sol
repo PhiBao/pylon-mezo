@@ -13,6 +13,7 @@ import {IERC20 as OZIERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol
 import {IPylonReserve} from "../src/interfaces/IPylon.sol";
 import {
     MockERC20,
+    MockBtcToken,
     MockPool,
     MockPoolFactory,
     MockRouter,
@@ -27,7 +28,7 @@ import {
 contract PylonTest is Test {
     MockERC20 musd;
     MockERC20 musdc;
-    MockERC20 btc;
+    MockBtcToken btc;
     MockPoolFactory poolFactory;
     MockPool flashPool;
     MockPool swapPool;
@@ -57,7 +58,9 @@ contract PylonTest is Test {
     function setUp() public {
         musd = new MockERC20("Mezo USD", "MUSD", 18);
         musdc = new MockERC20("Mezo USDC", "mUSDC", 6);
-        btc = new MockERC20("Bitcoin", "BTC", 18);
+        btc = new MockBtcToken();
+        // Mezo reports native and ERC-20 BTC through one balance, so the harness models it.
+        btc.setNativeLedger(true);
         poolFactory = new MockPoolFactory();
         // flash venue: stable MUSD pool (mirrors the live MUSD/mUSDC pool)
         flashPool = new MockPool(address(musd), address(musdc), address(poolFactory), true);
@@ -385,7 +388,7 @@ contract PylonTest is Test {
 
         // The reserve withholds its defence fee, so the debt falls by the amount received, not by the
         // booked loan. The difference is reserve yield.
-        uint256 fee = (repaid * reserve.defenceFeeBps()) / 10_000;
+        uint256 fee = (repaid * reserve.defenceFeeBps() + 9_999) / 10_000;
         assertEq(troveManager.getTroveDebt(position), debtBefore - (repaid - fee), "debt reduced by the received MUSD");
         assertEq(reserve.feesReceived(), (repayAmountFee()), "defence fee booked as reserve yield");
         assertGt(
@@ -501,7 +504,9 @@ contract PylonTest is Test {
         uint256 shares = reserve.deposit(10_000e18, lp);
         vm.stopPrank();
 
-        assertEq(shares, 10_000e18, "first deposit is 1:1");
+        // Shares carry a virtual-offset unit (1,000 shares = one MUSD of book value), so the invariant
+        // is that the deposit is still worth what was paid — not that the count matches.
+        assertEq(reserve.convertToAssets(shares), 10_000e18, "first deposit keeps its value");
         assertEq(reserve.totalAssets(), 10_000e18 + reserve.outstanding(), "assets tracked");
 
         // non-position cannot borrow
@@ -518,11 +523,11 @@ contract PylonTest is Test {
         reserve.notifyFee(100e18);
 
         assertEq(reserve.feesReceived(), 100e18, "fees tracked");
-        assertEq(reserve.convertToAssets(shares), 10_100e18, "share price appreciates");
+        assertApproxEqAbs(reserve.convertToAssets(shares), 10_100e18, 2, "share price appreciates");
 
         vm.prank(lp);
         reserve.withdraw(shares, lp, lp);
-        assertEq(musd.balanceOf(lp), 10_100e18, "lp redeemed principal plus fees");
+        assertApproxEqAbs(musd.balanceOf(lp), 10_100e18, 2, "lp redeemed principal plus fees");
     }
 
     function test_reserve_utilizationCapBlocksLoans() public {
@@ -754,5 +759,252 @@ contract PylonTest is Test {
         uint256 f = engine.flashPoolFeeBps();
         if (f == 0) return 0;
         return (amount * f) / (10_000 - f) + 1;
+    }
+
+    // ---------------------------------------------------------------------
+    // Audit regressions — second pass
+    // ---------------------------------------------------------------------
+
+    /// The audited `deposit` priced shares against a total that already held the deposit, so a second
+    /// depositor lost up to half of their money to the first one inside the same transaction.
+    function test_reserve_secondDepositKeepsItsValue() public {
+        vm.startPrank(lp);
+        musd.mint(lp, 1_000e18);
+        musd.approve(address(reserve), 1_000e18);
+        uint256 firstShares = reserve.deposit(1_000e18, lp);
+        vm.stopPrank();
+
+        address lp2 = address(0x1234);
+        vm.startPrank(lp2);
+        musd.mint(lp2, 100_000e18);
+        musd.approve(address(reserve), 100_000e18);
+        uint256 shares = reserve.deposit(100_000e18, lp2);
+        vm.stopPrank();
+
+        assertApproxEqAbs(reserve.convertToAssets(shares), 100_000e18, 2, "second deposit keeps its value");
+        assertApproxEqAbs(reserve.convertToAssets(firstShares), 1_000e18, 2, "first depositor is not enriched");
+    }
+
+    /// A donation must not be able to price the next depositor out of the pool.
+    function test_reserve_donationCannotBlockTheNextDepositor() public {
+        vm.startPrank(lp);
+        musd.mint(lp, 1_000e18);
+        musd.approve(address(reserve), 1_000e18);
+        reserve.deposit(1_000e18, lp);
+        vm.stopPrank();
+
+        // An attacker inflates the pool with a direct transfer.
+        vm.startPrank(alice);
+        musd.mint(alice, 1_000e18);
+        musd.transfer(address(reserve), 1_000e18);
+        vm.stopPrank();
+
+        address lp2 = address(0x1234);
+        vm.startPrank(lp2);
+        musd.mint(lp2, 100e18);
+        musd.approve(address(reserve), 100e18);
+        uint256 shares = reserve.deposit(100e18, lp2);
+        vm.stopPrank();
+
+        assertGt(shares, 0, "a normal deposit still mints shares");
+        assertApproxEqAbs(reserve.convertToAssets(shares), 100e18, 1e15, "value survives the donation");
+    }
+
+    /// Both position-mode flash legs must execute. The loop underflowed on the BTC baseline and the
+    /// unwind underflowed on the MUSD the engine pre-funds, so every call used to revert.
+    function test_position_flashLegsExecute() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 1e18}(25_000e18);
+
+        uint256 collAdd = 0.05e18;
+        (uint256 debtDelta, ) = engine.previewLoopDebtForCollateral(collAdd);
+        vm.prank(bob);
+        engine.loopPosition(position, debtDelta, collAdd, address(0), address(0), 1.1e18, block.timestamp + 1 hours);
+        assertEq(troveManager.getTroveColl(position), 1e18 + collAdd, "position loop executed");
+
+        uint256 debtBefore = troveManager.getTroveDebt(position);
+        vm.prank(bob);
+        engine.unwindPosition(position, 2_000e18, 0.021e18, address(0), address(0), 1.1e18, block.timestamp + 1 hours);
+
+        assertLt(troveManager.getTroveDebt(position), debtBefore, "position unwind executed");
+        uint256 parked = btc.balanceOf(position);
+        assertGt(parked, 0, "the unwind surplus is held for the owner");
+
+        // The owner recovers the parked surplus, because the withdrawal transfers the whole balance.
+        vm.prank(bob);
+        PylonPosition(payable(position)).withdrawCollateral(0.001e18, bob);
+        assertEq(btc.balanceOf(position), 0, "no BTC is stranded in the position");
+        assertGt(btc.balanceOf(bob), 0.001e18, "owner received the withdrawal plus the surplus");
+    }
+
+    /// A delegated executor must not be able to send the position's residual to itself.
+    function test_engine_closePositionExecutorCannotRedirectPayout() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 1e18}(25_000e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).setExecutor(alice);
+        assertTrue(PylonPosition(payable(position)).canExecute(alice), "executor is authorised");
+
+        vm.prank(alice);
+        engine.closePosition(position, alice, block.timestamp + 1 hours);
+
+        assertEq(btc.balanceOf(alice), 0, "the executor cannot name itself");
+        assertGt(btc.balanceOf(bob), 0.7e18, "the owner receives the residual");
+    }
+
+    /// A third party who copies a signed request must not be able to redirect its payout.
+    function test_engine_thirdPartyCannotRedirectSignedPayout() public {
+        troveManager.setTrove(alice, 1e18, 25_000e18, 1);
+        address attacker = address(0xBAD);
+
+        (uint256 debtDelta, ) = engine.previewLoopDebtForCollateral(0.005e18);
+        vm.prank(attacker);
+        engine.loopSigned(
+            PylonFlashEngine.LoopRequest({
+                owner: alice,
+                debtAmount: debtDelta,
+                collAdd: 0.005e18,
+                outputTo: attacker,
+                minPostICR: 0,
+                deadline: block.timestamp + 1 hours,
+                upperHint: address(0),
+                lowerHint: address(0),
+                signature: bytes("")
+            })
+        );
+        assertEq(troveManager.getTroveColl(alice), 1e18 + 0.005e18, "the signed loop ran");
+        assertEq(btc.balanceOf(attacker), 0, "the loop surplus did not follow the caller");
+
+        vm.prank(attacker);
+        engine.unwindSigned(
+            PylonFlashEngine.UnwindRequest({
+                owner: alice,
+                repayAmount: 5_000e18,
+                collOut: 0.052e18,
+                outputTo: attacker,
+                minPostICR: 0,
+                deadline: block.timestamp + 1 hours,
+                upperHint: address(0),
+                lowerHint: address(0),
+                signature: bytes("")
+            })
+        );
+        assertEq(btc.balanceOf(attacker), 0, "the unwind surplus did not follow the caller");
+        assertGt(btc.balanceOf(alice), 0, "the owner received the unwind surplus");
+    }
+
+    /// The defence must stop at Mezo's debt floor instead of letting the protocol reject it.
+    function test_position_defendStopsAtMezosDebtFloor() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 0.03e18}(2_100e18);
+
+        vm.startPrank(lp);
+        musd.mint(lp, 100_000e18);
+        musd.approve(address(reserve), 100_000e18);
+        reserve.deposit(100_000e18, lp);
+        vm.stopPrank();
+
+        vm.prank(bob);
+        PylonPosition(payable(position)).setShield(true, 1.9e18, 2.5e18, 10_000e18);
+        priceFeed.setPrice(70_000e18);
+
+        uint256 repaid = PylonPosition(payable(position)).defend();
+        uint256 floor = borrowerOps.minNetDebt() + borrowerOps.MUSD_GAS_COMPENSATION();
+        // Debt is 2,300 (2,100 borrowed + 200 gas compensation) and the floor is 2,000, so the largest
+        // repayment Mezo accepts is 300. The unclamped target would have been ~1,460.
+        assertEq(repaid, 300e18, "the repayment is clamped to the largest Mezo accepts");
+        assertLt(repaid, 1_400e18, "the unclamped target was much larger");
+        assertGe(troveManager.getTroveDebt(position), floor, "net debt stays above Mezo's floor");
+    }
+
+    /// A pushed pool must not be able to make the exit sell the owner's collateral too cheaply.
+    function test_engine_exitRejectsAPushedPool() public {
+        troveManager.setTrove(alice, 1e18, 25_000e18, 1);
+        // BTC becomes cheap in the pool: 25,000 MUSD per BTC against a 100,000 oracle.
+        btc.mint(address(swapPool), 3_000e18);
+        swapPool.setReserves(100_000_000e18, 4_000e18);
+
+        vm.expectRevert();
+        engine.closeSigned(
+            PylonFlashEngine.CloseRequest({
+                owner: alice,
+                outputTo: alice,
+                deadline: block.timestamp + 1 hours,
+                signature: bytes("")
+            })
+        );
+    }
+
+    /// The exit guard is what refuses the pushed pool, not an unrelated failure.
+    function test_engine_exitPushedPoolRevertIsTheSlippageGuard() public {
+        troveManager.setTrove(alice, 1e18, 25_000e18, 1);
+        btc.mint(address(swapPool), 3_000e18);
+        swapPool.setReserves(100_000_000e18, 4_000e18);
+
+        (bool ok, bytes memory data) = address(engine).call(
+            abi.encodeCall(
+                PylonFlashEngine.closeSigned,
+                (
+                    PylonFlashEngine.CloseRequest({
+                        owner: alice,
+                        outputTo: alice,
+                        deadline: block.timestamp + 1 hours,
+                        signature: bytes("")
+                    })
+                )
+            )
+        );
+
+        assertFalse(ok, "the exit must be refused");
+        assertEq(
+            uint256(uint32(bytes4(data))),
+            uint256(uint32(PylonFlashEngine.ExcessiveSlippage.selector)),
+            "the slippage guard refused it"
+        );
+        assertEq(
+            uint256(troveManager.getTroveStatus(alice)),
+            uint256(ITroveManager.Status.active),
+            "the trove is untouched"
+        );
+    }
+
+    /// Small operations still pay the reserve: floor division made sub-500 MUSD flashes free.
+    function test_engine_feeDoesNotTruncateToZero() public {
+        assertEq(engine.feeReport(100), 1, "a dust flash still pays one wei");
+        assertEq(engine.feeReport(1_000e18), 2e18, "20 bps of 1,000 MUSD");
+    }
+
+    /// A written-off loan must clear the position's mirror, or the collateral would be locked forever.
+    function test_reserve_writeOffClearsThePositionMirror() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 0.05e18}(25_000e18);
+
+        vm.startPrank(lp);
+        musd.mint(lp, 100_000e18);
+        musd.approve(address(reserve), 100_000e18);
+        reserve.deposit(100_000e18, lp);
+        vm.stopPrank();
+
+        vm.prank(bob);
+        PylonPosition(payable(position)).setShield(true, 1.75e18, 2e18, 10_000e18);
+        priceFeed.setPrice(70_000e18);
+        uint256 repaid = PylonPosition(payable(position)).defend();
+        assertGt(repaid, 0, "a defence loan exists");
+        assertEq(PylonPosition(payable(position)).reserveDebt(), repaid, "mirror is set");
+
+        // The trove is liquidated: the loan is unrecoverable, so governance writes it off.
+        troveManager.setTrove(position, 0, 0, 3);
+        reserve.writeOffLoan(position, repaid);
+
+        assertEq(reserve.loans(position), 0, "reserve wrote the loan off");
+        assertEq(PylonPosition(payable(position)).reserveDebt(), 0, "position mirror was cleared");
     }
 }

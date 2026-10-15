@@ -41,4 +41,8 @@ interface IPylonPosition {
     ) external payable;
 
     function executeClose() external;
+
+    /// @dev The reserve calls this when it writes a loan off, so the position's mirror cannot keep a
+    ///      written-off loan alive and lock the collateral.
+    function writeOffReserveDebt(uint256 amount) external;
 }

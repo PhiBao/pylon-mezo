@@ -174,6 +174,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     event ReserveUpdated(address indexed reserve);
     event FlashFeeUpdated(uint16 feeBps);
     event TreasuryUpdated(address indexed treasury);
+    event ExitSlippageUpdated(uint256 maxExitSlippageBps);
 
     // ---------------------------------------------------------------------
     // Errors
@@ -201,6 +202,10 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     error StageFailed(uint8 stage, uint256 gasLeft, bytes reason);
     /// @notice The callback payload does not describe the operation this engine started.
     error PayloadMismatch();
+    /// @notice The trove delivered less collateral than the caller's signed ceiling.
+    error ShortCollateral(uint256 expected, uint256 received);
+    /// @notice The collateral sale realised too little MUSD per BTC against the oracle price.
+    error ExcessiveSlippage(uint256 realised, uint256 floor);
     /// @notice The flash venue returned without servicing the callback, so nothing was executed.
     error FlashNotServiced();
 
@@ -258,6 +263,10 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         flashPoolStable = flashPool_.stable();
         musdIsToken0 = swapPool_.token0() == address(musd_);
 
+        // The router's default factory must be the factory of the pool the engine prices against,
+        // otherwise a quote and its execution could target different pools. Fail at deploy.
+        if (router_.defaultFactory() != swapPool_.factory()) revert UnsupportedPool();
+
         gasCompensation = borrowerOps_.MUSD_GAS_COMPENSATION();
         minNetDebt = borrowerOps_.minNetDebt();
         flashFeeBps = 20; // 0.20% of the flashed notional
@@ -314,13 +323,14 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         _requireDeadline(r.deadline);
         if (r.debtAmount == 0 || r.collAdd == 0) revert ZeroAmount();
         _requireActiveTrove(r.owner);
+        address payoutTo = _signedPayout(r.owner, r.outputTo);
 
         feeMusd = _pylonFee(r.debtAmount);
         _flash(
             HookPayload({
                 op: OP_LOOP,
                 owner: r.owner,
-                outputTo: r.outputTo == address(0) ? r.owner : r.outputTo,
+                outputTo: payoutTo,
                 amountIn: r.debtAmount,
                 collAdd: r.collAdd,
                 collOut: 0,
@@ -342,12 +352,13 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         _requireDeadline(r.deadline);
         if (r.repayAmount == 0 || r.collOut == 0) revert ZeroAmount();
         _requireActiveTrove(r.owner);
+        address payoutTo = _signedPayout(r.owner, r.outputTo);
 
         _flash(
             HookPayload({
                 op: OP_UNWIND,
                 owner: r.owner,
-                outputTo: r.outputTo == address(0) ? r.owner : r.outputTo,
+                outputTo: payoutTo,
                 amountIn: r.repayAmount,
                 collAdd: 0,
                 collOut: r.collOut,
@@ -365,6 +376,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     function closeSigned(CloseRequest calldata r) external nonReentrant returns (uint256 btcToOwner, uint256 feeMusd) {
         _requireDeadline(r.deadline);
         _requireActiveTrove(r.owner);
+        address payoutTo = _signedPayout(r.owner, r.outputTo);
 
         // Persist accrued interest first so the exact flash size is known inside this transaction.
         troveManager.updateSystemAndTroveInterest(r.owner);
@@ -377,7 +389,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
             HookPayload({
                 op: OP_CLOSE,
                 owner: r.owner,
-                outputTo: r.outputTo == address(0) ? r.owner : r.outputTo,
+                outputTo: payoutTo,
                 amountIn: flashAmount,
                 collAdd: 0,
                 collOut: 0,
@@ -477,7 +489,9 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
             HookPayload({
                 op: OP_CLOSE_POSITION,
                 owner: position,
-                outputTo: outputTo == address(0) ? IPylonPosition(position).owner() : outputTo,
+                // An executor is a delegate for flash operations; closing hands the position's whole
+                // residual to whoever the caller names, so only the owner may redirect it.
+                outputTo: _signedPayout(IPylonPosition(position).owner(), outputTo),
                 amountIn: flashAmount,
                 collAdd: 0,
                 collOut: 0,
@@ -573,9 +587,20 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     /// @dev Unwind: flash the exact repayment, hand it to the signature helper (which burns it from
     ///      this engine, its caller), withdraw the signed collateral ceiling, and sell just enough
     ///      BTC to repay the flash plus both fees. Works with zero MUSD in the owner's wallet.
+    /// @dev The trove must deliver at least the ceiling the caller signed for. A short delivery would
+    ///      otherwise be topped up from the engine's own balance.
+    function _verifyCollateralReceived(uint256 expected) private view {
+        uint256 received = btc.balanceOf(address(this)) - _btcBefore;
+        if (received < expected) revert ShortCollateral(expected, received);
+    }
+
     function _runUnwind(HookPayload memory p) private {
         _requireRepaymentCapacity(p.amountIn);
         _adjustSigned(p, p.collOut, p.amountIn, false, 0);
+
+        // Measure what the trove actually released instead of trusting the signed ceiling: a short
+        // delivery would otherwise be funded out of the engine's own balance.
+        _verifyCollateralReceived(p.collOut);
 
         uint256 need = p.amountIn + _totalFees(p.amountIn);
         uint256 btcIn = _amountInForExactOut(btc, need);
@@ -638,6 +663,8 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
             revert StageFailed(2, gasleft(), reason);
         }
 
+        _verifyCollateralReceived(p.collOut);
+
         uint256 need = p.amountIn + _totalFees(p.amountIn);
         uint256 btcIn = _amountInForExactOut(btc, need);
         if (btcIn > p.collOut) revert InsufficientSwapOutput(p.collOut, btcIn);
@@ -678,6 +705,12 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         if (btcIn > coll) revert InsufficientSwapOutput(coll, btcIn);
         uint256 got = _swap(btc, musd, btcIn, need, p.deadline);
 
+        // The sale must realise a price within tolerance of the oracle, so a pushed pool cannot make
+        // the exit hand over more collateral than the market implies.
+        uint256 realised = (got * 1e18) / btcIn;
+        uint256 floorPrice = (priceFeed.fetchPrice() * (10_000 - maxExitSlippageBps)) / 10_000;
+        if (realised < floorPrice) revert ExcessiveSlippage(realised, floorPrice);
+
         _repayFlash(p.amountIn);
         _payFee(_pylonFee(p.amountIn));
 
@@ -701,8 +734,27 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         return _pylonFee(amount);
     }
 
+    /// @notice Largest discount to the oracle price an exit may realise, in basis points.
+    /// @dev The exit path sells collateral to repay the flash and no request field could bound it, so
+    ///      a sandwich in front of a close would make the position sell more BTC for the same MUSD.
+    ///      This floor bounds that loss without changing the request format. A per-user minimum output
+    ///      is the roadmap improvement; this guard is what protects every caller today.
+    uint256 public maxExitSlippageBps = 800;
+
+    /// @notice Hard ceiling for `maxExitSlippageBps`.
+    uint256 public constant MAX_EXIT_SLIPPAGE_BPS = 2_000;
+
+    function setMaxExitSlippageBps(uint256 bps) external onlyOwner {
+        if (bps > MAX_EXIT_SLIPPAGE_BPS) revert FeeTooHigh();
+        maxExitSlippageBps = bps;
+        emit ExitSlippageUpdated(bps);
+    }
+
+    /// @dev Rounds up, so a small flash still pays the reserve. Floor division would make every
+    ///      operation below 500 MUSD free and let a user split a large unwind to avoid the fee.
     function _pylonFee(uint256 amount) private view returns (uint256) {
-        return (amount * flashFeeBps) / 10_000;
+        if (amount == 0 || flashFeeBps == 0) return 0;
+        return (amount * flashFeeBps + 9_999) / 10_000;
     }
 
     /// @notice Live fee charged by the flash venue, read from the pool factory.
@@ -778,7 +830,10 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
             from: address(tokenIn),
             to: address(tokenOut),
             stable: false,
-            factory: router.defaultFactory()
+            // The route must name the factory that owns the pool every size and fee was read from.
+            // Using the router's default factory instead would let a different default send the swap
+            // to a pool the engine never priced.
+            factory: swapPool.factory()
         });
         uint256[] memory amounts = router.swapExactTokensForTokens(amountIn, minOut, routes, address(this), deadline);
         amountOut = amounts[amounts.length - 1];
@@ -803,6 +858,17 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     /// @notice Live fee of the MUSD/BTC swap pool, read from the pool factory.
     function swapPoolFeeBps() public view returns (uint256) {
         return poolFactory.getFee(address(swapPool), swapPool.stable());
+    }
+
+    /// @dev A signature-authorised request never names its final destination: Mezo's ballot binds the
+    ///      trove and the engine, not `outputTo`. A caller other than the owner could therefore copy a
+    ///      signed request out of the mempool, name themselves in `outputTo`, and take the proceeds
+    ///      while the owner's own transaction reverts on the consumed nonce. Third-party callers
+    ///      (relayers, keepers, the engine service) can only route the proceeds to the owner; the owner
+    ///      keeps full choice of destination.
+    function _signedPayout(address owner, address requested) private view returns (address) {
+        if (msg.sender != owner) return owner;
+        return requested == address(0) ? owner : requested;
     }
 
     /// @dev Calls the Mezo signature helper for a trove adjustment signed by the trove owner.

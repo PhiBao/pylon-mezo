@@ -11,8 +11,12 @@ contract MockERC20 {
     string public symbol;
     uint8 public decimals;
     uint256 public totalSupply;
-    mapping(address => uint256) public balanceOf;
+    mapping(address => uint256) internal stored;
     mapping(address => mapping(address => uint256)) public allowance;
+
+    function balanceOf(address account) public view virtual returns (uint256) {
+        return stored[account];
+    }
 
     constructor(string memory n, string memory s, uint8 d) {
         name = n;
@@ -21,12 +25,12 @@ contract MockERC20 {
     }
 
     function mint(address to, uint256 amount) external {
-        balanceOf[to] += amount;
+        stored[to] += amount;
         totalSupply += amount;
     }
 
     function burn(address from, uint256 amount) external {
-        balanceOf[from] -= amount;
+        stored[from] -= amount;
         totalSupply -= amount;
     }
 
@@ -36,8 +40,8 @@ contract MockERC20 {
     }
 
     function transfer(address to, uint256 amount) external returns (bool) {
-        balanceOf[msg.sender] -= amount;
-        balanceOf[to] += amount;
+        stored[msg.sender] -= amount;
+        stored[to] += amount;
         return true;
     }
 
@@ -45,9 +49,28 @@ contract MockERC20 {
         if (from != msg.sender) {
             allowance[from][msg.sender] -= amount;
         }
-        balanceOf[from] -= amount;
-        balanceOf[to] += amount;
+        stored[from] -= amount;
+        stored[to] += amount;
         return true;
+    }
+}
+
+/// @dev Bitcoin on Mezo is one ledger: the native balance and the ERC-20 balance are the same number,
+///      so value sent to a contract is already in that contract's `balanceOf` when its body runs, and
+///      forwarding value spends it. The mock expresses that by adding the account's native balance to
+///      its stored balance. Without this the harness hides value-flow bugs inside `{value: ...}` calls
+///      — which is exactly how the broken position flash loop survived the first test suite.
+contract MockBtcToken is MockERC20 {
+    bool public nativeLedger;
+
+    constructor() MockERC20("Bitcoin", "BTC", 18) {}
+
+    function setNativeLedger(bool v) external {
+        nativeLedger = v;
+    }
+
+    function balanceOf(address account) public view override returns (uint256) {
+        return stored[account] + (nativeLedger ? account.balance : 0);
     }
 }
 
@@ -330,9 +353,9 @@ contract MockBorrowerOps {
 
     IMUSD public musd;
     MockTroveManager public troveManager;
-    MockERC20 public btc;
+    MockBtcToken public btc;
 
-    constructor(IMUSD musd_, MockTroveManager tm_, MockERC20 btc_) {
+    constructor(IMUSD musd_, MockTroveManager tm_, MockBtcToken btc_) {
         musd = musd_;
         troveManager = tm_;
         btc = btc_;

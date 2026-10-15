@@ -5,7 +5,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {IPylonReserve} from "./interfaces/IPylon.sol";
+import {IPylonPosition, IPylonReserve} from "./interfaces/IPylon.sol";
 
 /// @title PylonReserve
 /// @notice The shield pool: a MUSD-denominated, share-based liquidity reserve that earns the
@@ -67,6 +67,13 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     /// @notice Hard ceiling for the defence fee.
     uint256 public constant MAX_DEFENCE_FEE_BPS = 500;
 
+    /// @notice Virtual shares and assets used in the share maths (the ERC-4626 virtual-offset form).
+    ///         They keep the share price defined for the first depositor and make a donation attack
+    ///         cost more than the deposit it tries to block, without changing the 1:1 unit that the
+    ///         interface reports.
+    uint256 public constant VIRTUAL_SHARES = 1;
+    uint256 public constant VIRTUAL_ASSETS = 1;
+
     // ---------------------------------------------------------------------
     // Events
     // ---------------------------------------------------------------------
@@ -77,6 +84,7 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     event Lent(address indexed position, uint256 amount, uint256 totalOutstanding);
     event Repaid(address indexed position, uint256 amount, uint256 remaining);
     event PositionRegistered(address indexed position);
+    event LoanWrittenOff(address indexed position, uint256 amount, uint256 remaining);
     event LimitsUpdated(uint256 maxLendPerCall, uint256 maxLendPerPosition, uint256 utilizationCapBps);
     event ConcentrationUpdated(uint256 maxPerPositionBps, uint256 defenceFeeBps);
     event EngineUpdated(address indexed engine);
@@ -159,27 +167,39 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
         return musd.balanceOf(address(this));
     }
 
+    /// @notice Shares minted for `assets` at the pool's current price.
+    /// @dev Uses the virtual-share offset so the price is defined before the first deposit.
     function convertToShares(uint256 assets) public view returns (uint256) {
-        uint256 supply = totalShares;
         uint256 total = totalAssets();
-        if (supply == 0 || total == 0) return assets;
-        return (assets * supply) / total;
+        return (assets * (totalShares + VIRTUAL_SHARES)) / (total + VIRTUAL_ASSETS);
     }
 
+    /// @notice Assets redeemable for `shareBalance` at the pool's current price.
     function convertToAssets(uint256 shareBalance) public view returns (uint256) {
-        uint256 supply = totalShares;
-        if (supply == 0) return shareBalance;
-        return (shareBalance * totalAssets()) / supply;
+        return (shareBalance * (totalAssets() + VIRTUAL_ASSETS)) / (totalShares + VIRTUAL_SHARES);
+    }
+
+    /// @notice Value of one whole share at the pool's current price, the unit the interface reports.
+    function sharePrice() external view returns (uint256) {
+        return convertToAssets(1e18);
     }
 
     /// @notice Deposits MUSD and mints shares to `receiver`.
     function deposit(uint256 assets, address receiver) external nonReentrant returns (uint256 sharesMinted) {
         if (receiver == address(0)) revert ZeroAddress();
         if (assets == 0) revert ZeroAmount();
+
+        // The price must be read *before* the deposit lands. `convertToShares` reads `totalAssets()`
+        // from the live balance, so calling it after `transferFrom` would count the depositor's own
+        // MUSD in the total and mint them fewer shares than they paid for — the loss going to earlier
+        // holders. The pre-transfer total is therefore snapshotted here and the shares are computed
+        // from it.
         uint256 before = musd.balanceOf(address(this));
+        uint256 totalBefore = before + outstanding;
         musd.transferFrom(msg.sender, address(this), assets);
         uint256 received = musd.balanceOf(address(this)) - before;
-        sharesMinted = convertToShares(received);
+
+        sharesMinted = (received * (totalShares + VIRTUAL_SHARES)) / (totalBefore + VIRTUAL_ASSETS);
         if (sharesMinted == 0) revert ZeroAmount();
         totalShares += sharesMinted;
         shares[receiver] += sharesMinted;
@@ -251,7 +271,9 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
 
         // The position owes the full amount and receives it less the defence fee, so the reserve earns
         // its spread from the first second of the loan instead of relying on an accrual model.
-        uint256 fee = (amount * defenceFeeBps) / 10_000;
+        // Rounded up for the same reason as the origination fee: a floor would make small defence
+        // loans free and let a borrower split a defence to avoid paying for the capital.
+        uint256 fee = defenceFeeBps == 0 ? 0 : (amount * defenceFeeBps + 9_999) / 10_000;
         loans[msg.sender] += amount;
         outstanding += amount;
         musd.transfer(msg.sender, amount - fee);
@@ -260,6 +282,23 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
             emit FeeReceived(msg.sender, fee);
         }
         emit Lent(msg.sender, amount, outstanding);
+    }
+
+    /// @notice Writes off a defence loan that cannot be repaid, for example after the position's trove
+    ///         was liquidated. The loss is removed from `outstanding`, so `totalAssets()` stops
+    ///         counting assets the pool no longer holds and the share price falls immediately instead
+    ///         of quietly overstating every later deposit.
+    ///         Governance must only call this once the trove is provably closed.
+    function writeOffLoan(address position, uint256 amount) external onlyOwner {
+        uint256 loan = loans[position];
+        uint256 applied = amount > loan ? loan : amount;
+        if (applied == 0) revert NothingToRepay();
+        loans[position] = loan - applied;
+        outstanding -= applied;
+        // Clear the mirror on the position too, so a written-off loan cannot leave it permanently
+        // unable to withdraw its collateral. Best effort: the position may already be gone.
+        try IPylonPosition(position).writeOffReserveDebt(applied) {} catch {}
+        emit LoanWrittenOff(position, applied, loans[position]);
     }
 
     /// @notice Books a repayment already transferred in by the calling position.

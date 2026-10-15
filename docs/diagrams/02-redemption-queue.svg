@@ -155,6 +155,6 @@
   <!-- ═══ footnote ═══ -->
   <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#6B7280">
     <text x="40" y="502">Mezo Testnet · chainId 31611 · SortedTroves 0x722E4D24FD6Ff8b0AC679450F3D91294607268fA · TroveManager 0xE47c80e8c23f6B4A1aE41c34837a0599D5D16bb0 · HintHelpers 0x4e4cBA3779d56386ED43631b4dCD6d8EacEcBCF6</text>
-    <text x="40" y="512">MUSD 0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503 · PriceFeed 0x86bCF0841622a5dAC14A313a15f96A95421b9366 · PylonReserve 0xcc9dD7197237bbb645978D9A92872C7F82B6b881 · PylonPosition 0x504DcDD85FD82C2974F27b1f71B6cc116EbE18bE</text>
+    <text x="40" y="512">MUSD 0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503 · PriceFeed 0x86bCF0841622a5dAC14A313a15f96A95421b9366 · PylonReserve 0x53a0206A307E084AdA2eB24346463cf4E14C5131 · PylonPosition 0x0e64B682Add80A61d24E61ed360b3F3679C6860a</text>
   </g>
 </svg>

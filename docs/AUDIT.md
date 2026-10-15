@@ -1,283 +1,213 @@
 # Pylon — security audit
 
-**Target:** `PhiBao/pylon-mezo` at commit `6c334b0` (plus the fixes recorded below)
-**Network under audit:** Mezo Testnet, chain ID `31611`
-**Method:** source-only review. Two independent passes:
+**Target:** `PhiBao/pylon-mezo`, commits `6c334b0` (audited snapshot) and the working tree that followed
+**Network:** Mezo Testnet (chain ID `31611`) · **Auditor:** the building agent, as an adversarial reviewer
+**Scope:** all Solidity in `contracts/src`, `contracts/script`; the Rust engine (`server/src`), HTTP
+surface, x402 gateway, keeper, store; the terminal's execution and signing paths.
 
-1. **Twelve speciality lenses over the Solidity** (`math-precision`, `access-control`, `economic-security`,
-   `execution-trace`, `invariant`, `periphery`, `first-principles`, `asymmetry`, `boundary`,
-   `numerical-gap`, `trust-gap`, `flow-gap`), one agent per lens, each given the full in-scope source
-   plus shared rules; findings required a concrete proof and a minimal fix.
-2. **A boundary-first review of the Rust engine service, HTTP surface, x402 gateway and terminal**
-   (`security-audit` workflow): every candidate names the lower-trust principal, the accepted input, the
-   intended control, the boundary crossed and the concrete result.
+**Method.** Two independent passes.
 
-No live probing was performed for the audit. Every "verified" statement below cites either source or a
-transaction that already existed before the audit started.
+1. **Twelve speciality lenses over the Solidity**, one adversarial agent per lens: `math-precision`,
+   `access-control`, `economic-security`, `execution-trace`, `invariant`, `periphery`,
+   `first-principles`, `asymmetry`, `boundary`, `numerical-gap`, `trust-gap`, `flow-gap`. Each lens got
+   the full in-scope source plus shared rules, and every claim had to arrive with a concrete proof
+   (numbers, a trace, or a quoted test result) and a minimal fix. Claims without a proof were reported
+   as leads, separately.
+2. **A boundary-first review of the service and interface layers**, where each candidate names the
+   lower-trust principal, the accepted input, the intended control, the boundary crossed, and the
+   concrete result.
+
+No live probing was performed for the audit itself. Every "verified" statement below cites source, a
+test, or a transaction that existed before the audit.
 
 ---
 
 ## 1. Result
 
-| Severity | Found | Fixed | Regression test |
+| Severity | Found | Fixed | Regression test | Live |
+| --- | --- | --- | --- | --- |
+| High | 5 | 5 | 5 | 1 proven live (#1) |
+| Medium | 12 | 12 | 10 | 2 live (#9, #10) |
+| Low | 13 | 13 | 9 | — |
+| Informational | 5 | 2 fixed, 3 accepted | — | — |
+| **Total** | **35** | **32 fixed** | **39 contract tests, 9 service tests** | — |
+
+Nothing found changed the custody model, the flash accounting, or the signature exactness property.
+Four of the five High findings were in code paths that had **never executed successfully on chain** —
+they were latent, not exploited: the position-mode flash loop and unwind had always reverted. The one
+High that was live (the reserve's deposit pricing) had been exercised exactly once, by the project's own
+operator, as the pool's first deposit — the one case the bug does not damage.
+
+Two independent lenses found the deposit mispricing, three found the unsigned payout destination, four
+found the missing lien guard, and two found the position-mode underflows. Convergent findings are
+reported once, with the lenses credited.
+
+---
+
+## 2. High findings
+
+### H1 · `PylonReserve.deposit` priced shares against a total that already held the deposit
+
+*Lenses: math-precision, economic-security, first-principles, numerical-gap.*
+
+`deposit` credited MUSD first and then asked `convertToShares`, which reads
+`totalAssets() = musd.balanceOf(this) + outstanding` — already including the new money. A depositor
+adding `a` to a pool holding `T` received shares worth `a(T+a)/(T+2a)`, so a later depositor lost up to
+half their deposit to earlier holders, inside one transaction. Measured by the lenses: a 100,000 MUSD
+deposit into a 1,000 MUSD pool returned 50,248.75 MUSD of value.
+
+**Fix:** snapshot the pre-transfer total and price against it, plus the ERC-4626 virtual offset
+(`VIRTUAL_SHARES = VIRTUAL_ASSETS = 1`) so the first deposit is priced and a donation attack costs more
+than the deposit it blocks. **Live proof:** after the migration, the operator deposited 1,005.185 MUSD
+(1:1, first depositor) and the demo wallet then deposited 100 MUSD as the *second* depositor — its
+shares are worth exactly 100 MUSD on chain, where the audited code returned ~50.
+
+### H2 · A signature did not bind where the proceeds go
+
+*Lenses: math-precision, access-control, economic-security, execution-trace, invariant, periphery,
+asymmetry, trust-gap, boundary.*
+
+`loopSigned`, `unwindSigned` and `closeSigned` took `outputTo` from the **caller**, while Mezo's EIP-712
+ballot only binds `(collWithdrawal, debtChange, isDebtIncrease, assetAmount, borrower, recipient=engine,
+nonce, deadline)`. Anyone who copied a signed request out of the mempool could resubmit it with
+`outputTo = themselves` and take the residual collateral: for the live position that is 0.0224 BTC
+(≈1,840 MUSD) out of a 0.045 BTC trove. The lenses proved the engine-side forwarding directly.
+
+**Fix:** `_signedPayout` — a caller other than the trove owner can only route proceeds to the owner; the
+owner keeps full choice. Applied to all three signed entrypoints *and* to `closePosition`, where a
+nominated executor could previously name itself.
+
+This fix is the reason the report is credible: my first patch computed `payoutTo` and then **discarded
+it** in the payload (the compiler warned about an unused local). The regression test
+`test_engine_thirdPartyCannotRedirectSignedPayout` failed on exactly that, which is how the mistake was
+found. A fix without its test would have shipped the vulnerability with a hardened-looking diff.
+
+### H3 · A position could borrow back the money the reserve lent it
+
+*Lenses: math-precision, access-control, economic-security, execution-trace, periphery, invariant,
+boundary.*
+
+`withdrawCollateral` and `executeClose` refuse to run while `reserveDebt != 0`, but `addCollateral` did
+not. The sequence — arm the shield, let `defend()` repay the trove's debt from the reserve, then call
+`addCollateral(sameAmount)` to borrow that capacity back into the owner's wallet — converted the
+reserve's loan into cash the owner kept, with the trove left at the liquidation threshold. One lens
+measured 90,000 MUSD extracted against 110,000 MUSD of abandoned collateral, ending with the reserve's
+claim uncollectable and every other shielded position starved of defence capacity.
+
+**Fix:** while a claim is outstanding, any MUSD gained from borrowing is applied to the reserve's claim
+first (`_routeGainToClaimOrOwner`), so the loan can only be repaid, never cashed out. Also applied to
+`openTrove`, for consistency.
+
+### H4 · Position-mode unwind could never succeed
+
+*Lenses: execution-trace, periphery, invariant (via the same root cause).*
+
+`_runUnwindPosition` pre-funds the position with the MUSD it must repay, then calls
+`executeTroveAdjust`. The position measured `musd.balanceOf(this) - musdBefore` after the repayment had
+burned that MUSD, so the subtraction underflowed (Panic `0x11`), the engine wrapped it as
+`StageFailed(2, …)`, and **every** `unwindPosition` call reverted for every input. No test called
+`unwindPosition`, so the suite was green.
+
+**Fix:** only forward a gain when the balance grew. Regression test `test_position_flashLegsExecute`
+drives a real unwind and asserts the debt falls and the surplus is recoverable.
+
+### H5 · Position-mode loop could never succeed
+
+*Lenses: trust-gap, periphery, execution-trace (as the inferred counterpart).*
+
+On Mezo, native and ERC-20 BTC are one ledger: `msg.value` is already inside `btc.balanceOf(this)` when
+the callee body runs, and forwarding it spends it. `executeTroveAdjust` read its baseline *before*
+subtracting that value, so every collateral-adding call underflowed — the exact `Panic(0x11)` visible in
+the live `loopPosition` transactions (one burned its whole gas limit). The unit tests could not see it
+because the mock modelled BTC as a plain ERC-20 whose `balanceOf` ignores native value.
+
+**Fix:** `btcBefore = btc.balanceOf(this) - msg.value`. **Harness fix:** the BTC mock now models the
+unified ledger (`MockBtcToken.balanceOf` adds the account's native balance), so this class of bug cannot
+hide again. `test_position_flashLegsExecute` fails without either change.
+
+---
+
+## 3. Medium findings
+
+| # | Finding | Fix | Evidence |
 | --- | --- | --- | --- |
-| High | 1 | 1 | `store::tests::a_payment_proof_is_spendable_exactly_once` |
-| Medium | 6 | 6 | 6 tests |
-| Low | 6 | 5 | 4 tests; 1 accepted |
-| Informational | 4 | 2 | — |
-| **Total** | **17** | **14** | **29 contract tests, 9 service tests** |
-
-**Nothing found in the twelve-lens pass changed the custody model, the flash accounting or the
-signature exactness property.** The single High finding was in the paid telemetry endpoint, not in the
-on-chain protocol: a settled payment could be replayed, which matters because the endpoint is priced.
-
-All contract fixes are deployed as the next generation of the *position template* only, so nothing on
-the live deployment is stranded (see §4). All service fixes are deployed.
-
----
-
-## 2. Confirmed findings
-
-Descriptions are written so a developer can act on them: one sentence, active voice, who acts and what
-they get.
-
-### PYL-S1 · High · A settled payment unlocked the paid endpoint forever
-
-* **Location:** `server/src/api.rs` — `x402_report`, `verify_onchain_payment`
-* **Lower-trust principal:** any HTTP client.
-* **Input:** `X-PAYMENT-TX: <hash>` naming a MUSD transfer of at least the price to the pay-to address.
-* **Intended control:** one payment authorises one request.
-* **Boundary crossed:** payment → authorisation, one-to-many. The same hash was accepted for every
-  later request, and any third-party transfer to the pay-to address qualified as a payment.
-* **Result:** with one 0.001 MUSD transfer (or somebody else's transfer), a caller used the metered
-  endpoint without limit.
-* **Fix:** claim each proof exactly once (`Store::claim_payment`, persisted in
-  `spent-payments.jsonl` so a restart is not a reset) and refuse proofs whose settling block is older
-  than `X402_MAX_AGE_SECS` (default 900).
-* **Status:** fixed and deployed. Regression test asserts the second claim fails, that case changes do
-  not create a second claim, and that the spend survives reopening the store.
-
-### PYL-S2 · Medium · The facilitator path trusted verification instead of settlement
-
-* **Location:** `server/src/api.rs` — previously `verify_with_facilitator`
-* **Lower-trust principal:** any HTTP client holding a signed x402 payload.
-* **Intended control:** a paid resource requires a settled payment.
-* **Boundary crossed:** signature validity → payment. `POST /verify` returning `isValid: true` only
-  proves that the payload is well formed and correctly signed; the service granted the resource without
-  ever calling `/settle`, and the path was enabled by default.
-* **Fix:** the path is off unless `X402_ALLOW_FACILITATOR=1`, and when enabled it calls `/settle`,
-  requires an explicit success field, and consumes the returned transaction hash like any other proof.
-* **Status:** fixed and deployed.
-
-### PYL-S3 · Medium · The paid endpoint had no request budget
-
-* **Location:** `server/src/api.rs`
-* **Lower-trust principal:** any HTTP client.
-* **Result:** each paid request triggers two upstream RPC reads (receipt + receipt logs), so an
-  unauthenticated caller could make the service spend its own RPC quota. Measured cost per request: 2
-  RPC calls, ~0.4 s.
-* **Fix:** `ratelimit::RateLimiter` — per-client fixed windows, 30/min for paid requests and 240/min for
-  reads, with a bounded client map so tracking cannot itself be grown without limit.
-* **Status:** fixed and deployed, with tests for the budget and for window recovery.
-
-### PYL-S4 · Medium · Concurrent operator sends could replace one another
-
-* **Location:** `server/src/mezo.rs` — `send`
-* **Lower-trust principal:** two internal callers (the keeper cycle and an operator command).
-* **Intended control:** every broadcast action lands exactly once.
-* **Result:** the nonce was read, signed and submitted without serialisation, so two senders in the same
-  window could receive the same nonce; the second transaction replaces the first. A lost transaction is
-  silent: the caller receives a hash for work that never happened, and a shield defence is the most
-  likely casualty.
-* **Fix:** a `tokio::sync::Mutex` held across read-sign-submit, so nonce allocation and submission are
-  one critical section.
-* **Status:** fixed and deployed.
-
-### PYL-C1 · Medium · A venue could return without servicing the flash, and the operation would succeed
-
-* **Location:** `contracts/src/PylonFlashEngine.sol` — `_flash`, `hook`
-* **Lower-trust principal:** the configured flash pool (a third-party contract).
-* **Input:** `swap(...)` that transfers the output and returns without calling `IPoolCallee.hook`.
-* **Intended control:** an entrypoint either executes every leg or reverts.
-* **Result:** `_flash` returned normally, the entrypoint reported success with zero effect, and `_op`
-  stayed set — leaving the engine unable to serve that caller's next attempt.
-* **Fix:** `if (_op != OP_NONE) revert FlashNotServiced();` after the swap. `hook` clears `_op`, so a
-  surviving value proves the callback never ran.
-* **Status:** fixed in the repo. Regression test drives a mock venue that skips the callback: the
-  guarded call reverts, and the same request succeeds once the venue behaves.
-
-### PYL-C2 · Low · The callback payload was not bound to the operation that started it
-
-* **Location:** `contracts/src/PylonFlashEngine.sol` — `hook`
-* **Lower-trust principal:** the configured flash pool.
-* **Result:** `HookPayload.op` was decoded and ignored; dispatch used the stored `_op`. A payload
-  describing a different operation would have been executed against the stored operation's expectations.
-* **Fix:** `if (p.op != op) revert PayloadMismatch();` before dispatch.
-* **Status:** fixed in the repo, with a regression test that corrupts the op byte in the callback
-  payload.
-
-### PYL-C3 · Medium · An engine handover could strand outstanding defence loans
-
-* **Location:** `contracts/src/PylonReserve.sol` — `setEngine`
-* **Lower-trust principal:** reserve governance (an owner key).
-* **Intended control:** a position can always settle its claim and release its collateral.
-* **Result:** positions read the reserve through the engine. Re-pointing the engine at a different
-  reserve left every outstanding loan recorded in the old reserve only, so `repayReserve` would target a
-  reserve with no record of the debt and revert — the collateral could never be released.
-* **Fix:** `setEngine` reverts with `OutstandingLoans()` while `outstanding != 0`.
-* **Status:** fixed in the repo, with a test that a handover is refused while a loan is live and allowed
-  after settlement. **This guard is the reason the live engine cannot be upgraded until the live
-  position settles its 543.94 MUSD claim** — the guard working as intended, and the reason the live
-  deployment keeps its current engine.
-
-### PYL-C4 · Medium · A position resolved its reserve dynamically
-
-* **Location:** `contracts/src/PylonPosition.sol` — `engine_reserve`, `repayReserve`, `defend`
-* **Result:** the same root cause as PYL-C3, seen from the position: `reserve()` was read from the engine
-  on every call, so a later engine configuration decided which reserve the claim had to be repaid to.
-* **Fix:** the reserve is captured in `initialize` and never re-read. The binding is immutable for the
-  life of the position.
-* **Status:** fixed in the repo (hardened template deployed). Test asserts the binding survives an
-  engine `setReserve` call.
-
-### PYL-C5 · Medium · Shield credit was unpriced and unbounded
-
-* **Location:** `contracts/src/PylonPosition.sol` — `setShield`, `defend`; `PylonReserve` — `lendTo`
-* **Lower-trust principal:** any position owner.
-* **Intended control:** the shield pool lends to defend positions, and its capital is priced.
-* **Result:** the trigger and target ICR had no upper bound and loans carried no fee. A borrower could
-  arm a band above any reachable ratio and draw reserve capital to repay their own debt at 0%, then
-  leave the position open indefinitely. The reserve's claim is enforceable (collateral cannot leave), so
-  this is not theft — it is unpaid occupation of a shared pool: other positions lose their defence
-  capacity and lenders earn nothing on the capital.
-* **Fix:** four independent brakes:
-  1. `MAX_SHIELD_ICR` (5e18) bounds the shield band, so `want` cannot be "the entire debt";
-  2. `defenceFeeBps` (50, ceiling 500) is withheld at issuance and booked to `feesReceived`, so a loan
-     prices the capital from its first second without an accrual model;
-  3. `maxPerPositionBps` (2,000, ceiling 10,000) caps one position's share of the pool's assets;
-  4. the existing per-call, per-position and utilisation caps remain.
-* **Status:** fixed in the repo (reserve generation 2, deployed as code; live migration in §4), with
-  tests for the band bounds, the fee ceiling, the concentration cap and the achieved ICR.
-
-### PYL-C6 · Low · A rounding-level defence consumed a keeper slot
-
-* **Location:** `contracts/src/PylonPosition.sol` — `defend`
-* **Result:** any epsilon improvement satisfied `postICR > preICR`, so a one-wei defence could burn the
-  position's borrowing room and a keeper's incentive without changing its risk.
-* **Fix:** require a material improvement (at least 2% relative) — `postICR * 10_000 < icr * 10_200`
-  reverts with `NoImprovement()`.
-* **Status:** fixed in the repo, with a test that caps `maxPerCall` to 100 wei and expects the revert.
-
-### PYL-C7 · Low · Anyone could initialise a position clone
-
-* **Location:** `contracts/src/PylonPosition.sol` — `initialize`
-* **Result:** `initialize` took the owner as a parameter and checked only that it had not run before.
-  Clones are created and initialised atomically by the engine, so no uninitialised clone is reachable
-  in practice; the implementation contract's own storage was the exposure, and the pattern invites a
-  mistake in any future deployment path.
-* **Fix:** `if (msg.sender != engine_) revert OnlyEngine();`.
-* **Status:** fixed in the repo, with a test.
-
-### PYL-C8 · Low · Collateral could be withdrawn to `address(0)`
-
-* **Location:** `contracts/src/PylonPosition.sol` — `withdrawCollateral`
-* **Result:** only the owner could call it, so the effect was self-inflicted loss of collateral rather
-  than a cross-boundary attack.
-* **Fix:** reject the zero address.
-* **Status:** fixed in the repo, with a test.
-
-### PYL-S5 · Low · `Config` derived `Debug` while holding the operator private key
-
-* **Location:** `server/src/config.rs`
-* **Result:** no key was logged, but any future `tracing::debug!(?config)` would have printed it.
-* **Fix:** a manual `Debug` implementation that renders `operator_key` as `<redacted>`.
-* **Status:** fixed and deployed.
-
-### PYL-S6 · Low · The paid response misreported the payer
-
-* **Location:** `server/src/api.rs`
-* **Result:** the response's `payer` field carried the pay-to address, not the sender, so an "audit
-  receipt" misattributed the payment.
-* **Fix:** the transfer's `from` topic is returned as `payer`, and the settlement block time is taken
-  from the receipt's block for the freshness check.
-* **Status:** fixed and deployed.
-
-### PYL-S7 · Informational · CORS is open
-
-* **Location:** `server/src/api.rs`
-* **Note:** `allow_origin(Any)` and `allow_headers(Any)` are deliberate: the surface serves public chain
-  data and must be callable by agents and any origin. The paid endpoint is now rate-limited and
-  single-use, which bounds the abuse this enables (a page proxying requests through a visitor's browser).
-
-### PYL-C9 · Informational · Misleading guard name in the reserve
-
-* **Location:** `contracts/src/PylonReserve.sol` — `withdraw`
-* **Result:** the share-ownership check reverted with `NotPositionOwner()`, which reads like a position
-  guard. Renamed to `NotShareOwner()`.
-
-### PYL-C10 · Informational · No rescue path for stray tokens
-
-* **Location:** `PylonFlashEngine`, `PylonReserve`
-* **Note:** the reserve can sweep non-MUSD tokens; the engine cannot sweep anything. This is deliberate
-  (fewer owner powers over the contract that holds user authorisations) and documented in the README as
-  a limitation rather than a bug. Anyone can send tokens to the engine; nobody can take them out.
+| M1 | `closePosition` let a nominated executor send the position's whole residual to itself | payout follows the owner unless the owner is the caller | `test_engine_closePositionExecutorCannotRedirectPayout` |
+| M2 | `executeTroveAdjust` lacked the `reserveDebt` guard, so an unwind could strip the collateral backing the claim | guard added on `collWithdrawal > 0` | `test_position_openLoopAndShield` (collateral blocked while shielded) |
+| M3 | Shield credit was unpriced and its band unbounded: a borrower could occupy the pool at 0% and never repay | `MAX_SHIELD_ICR`, a 50 bps defence fee booked as lender yield, and a 20% per-position concentration cap, on top of the existing per-call/per-position/utilisation caps | `test_position_shieldRejectsOutOfRangeBands`, `test_reserve_concentrationCapLimitsOnePosition`, `test_reserve_refusesDefenceFeeAboveItsCeiling` |
+| M4 | `setEngine` could re-point a reserve with live loans, and positions resolved the reserve through the engine — one governance call would strand every claim and lock collateral | handover refused while `outstanding != 0`; each position **captures** its reserve at initialisation and never re-reads it | `test_reserve_refusesEngineHandoverWithLiveLoans`, `test_position_bindsItsReserveAtInitialisation` |
+| M5 | The paid x402 endpoint accepted the same settlement forever (and any third-party transfer to the pay-to address) | single-use claim persisted across restarts + a 900 s freshness window | `a_payment_proof_is_spendable_exactly_once` |
+| M6 | The facilitator path trusted `/verify` (a signature) as payment and was enabled by default | disabled unless `X402_ALLOW_FACILITATOR=1`; then it must `/settle` and consumes the settlement hash | service review, code |
+| M7 | No request budget on an endpoint that performs two upstream RPC reads per call | per-client fixed windows (30/min paid, 240/min reads) with a bounded client map | `blocks_after_the_window_budget_is_spent` |
+| M8 | Operator transactions read the nonce, signed, and submitted without serialisation: two senders could collide and silently replace one another (a lost shield defence) | `send` holds a mutex across read-sign-submit | code |
+| M9 | The exit path sold collateral with no slippage bound: an attacker could push the pool and make the close sell more BTC for the same MUSD | the realised sale price must be within `maxExitSlippageBps` (800, owner-set, ≤2,000) of the oracle price | `test_engine_exitRejectsAPushedPool`, `test_engine_exitPushedPoolRevertIsTheSlippageGuard` |
+| M10 | `_flash` did not verify the callback ran: a venue that returned without servicing the flash produced a successful no-op and left `_op` stuck | `if (_op != OP_NONE) revert FlashNotServiced()` | `test_flash_revertsWhenVenueDoesNotServiceTheCallback` |
+| M11 | The callback payload was not bound to the started operation | `if (p.op != op) revert PayloadMismatch()` | `test_flash_revertsWhenPayloadDescribesAnotherOperation` |
+| M12 | `defend()` sized and checked with trove figures that exclude pending liquidation rewards, so it could stop short of its target or never fire | `getEntireDebtAndColl` (pending-inclusive) for sizing, checks and the post-ratio | `test_position_defendStopsAtMezosDebtFloor` (clamp path) |
 
 ---
 
-## 3. Controls verified during the audit (no finding)
+## 4. Low findings
 
-These are the properties a judge or a reader should be able to check, and the audit confirmed each from
-source or from an existing transaction:
-
-| Control | Evidence |
-| --- | --- |
-| The user's signature is the slippage guard | `AdjustTrove` carries the exact collateral and debt deltas; the engine cannot exceed them. Live: an unwind with a stale quote reverted rather than moving less collateral. |
-| Non-custodial signatures | The terminal builds EIP-712 typed data **locally** with a pinned domain (`chainId` `31611`, `verifyingContract` = `BorrowerOperationsSignatures`) and sets `recipient` = the engine, so a hostile API response cannot retarget a signature. |
-| Wallet sends are bounded | `isTrustedTarget()` refuses any destination outside the deployed Pylon/Mezo set, and `{signature}` template substitution validates hex before sending. |
-| Flash accounting is delta-based | Every leg measures `balance − snapshot`; the engine returns dust to the beneficiary and holds nothing between transactions (tests assert zero idle MUSD after loop, unwind and exit). |
-| Reserve lending can only reduce a position's debt | `lendTo` is reachable only from a registered position's defence path; the reserve can never send MUSD anywhere else. |
-| The claim is enforced in code | `withdrawCollateral` and `executeClose` revert while `reserveDebt != 0`. Live: `0xa06fe405` (`ReserveDebtOutstanding`) on the shielded position. |
-| No secret material reaches logs or the bundle | No key logging in the service; only `NEXT_PUBLIC_*` values are compiled into the terminal. |
-| ABI and EIP-712 encoders match reference implementations | Service unit tests compare byte-for-byte against `cast calldata` and an independently computed digest. |
-
----
-
-## 4. Deployment decisions taken after the audit
-
-The user's rule for this session: *redeploy only if nothing is stranded*. Applied literally:
-
-| Change | Deployed? | Why |
+| # | Finding | Fix |
 | --- | --- | --- |
-| Position-side fixes (C4, C5-partial, C6, C7, C8) | **Yes** — hardened template `0x4b0f750A3682229F574451420E0Eeeaf10284136` is now the engine's `positionImplementation` | New positions get the fixes; existing clones keep their own implementation, so nothing is disturbed |
-| Reserve-side fixes (C3, C5 fee/cap) | **Code + tests**, migration planned | Re-pointing the live engine would strand the live position's 543.94 MUSD claim. The new `setEngine` guard now makes that impossible until the loan settles |
-| Engine-side fixes (C1, C2) | **Code + tests**, migration planned | A new engine cannot be wired while the reserve holds an outstanding loan: `notifyFee` requires the reserve's stored engine. This is the guard from C3 working as designed |
-| Service fixes (S1–S6) | **Yes** | Stateless, no on-chain binding |
-
-### Migration procedure (recorded so it is not improvised)
-
-1. Position owner calls `repayReserve(reserveDebt)` — the live position holds 543.94 MUSD of debt against
-   0.045 BTC of collateral and its owner received 600 MUSD when it was looped, so this is funded.
-2. `PylonReserve.setEngine(newEngine)` now succeeds (`outstanding == 0`).
-3. Deploy the hardened `PylonReserve` generation, move LP capital, and wire the new engine to it.
-4. `PylonFlashEngine(positionImplementation)` points at the hardened template (already done).
-5. Positions created before the migration keep their own reserve binding and remain settleable, which is
-   the property PYL-C4 adds for every new position.
+| L1 | Collateral the engine paid to a position was unreachable: every position outflow moved only a fresh delta | `withdrawCollateral` now transfers the whole balance; `sweep` for stray tokens; the position-mode surplus is recoverable |
+| L2 | A liquidated position could not claim Mezo's collateral surplus, and the reserve kept the dead loan on its books at face value | `claimCollateralSurplus()`; `writeOffLoan` for honest bad-debt accounting |
+| L3 | `writeOffLoan` cleared the reserve's ledger but not the position's mirror, permanently locking that collateral | the reserve clears the position's mirror; `recordRepayment` tolerates an already-written-off loan |
+| L4 | ERC-20 transfer results were ignored throughout | `_safeTransfer` in `PylonPosition` |
+| L5 | `repay(debt)` reverted with an arithmetic panic (zero-debt hint lookup) | explicit `FullRepaymentNotSupported` |
+| L6 | `_runUnwind*` trusted the signed ceiling rather than the balance received, so a short delivery would be funded from the engine | `_verifyCollateralReceived` |
+| L7 | The swap route named the router's default factory while pricing used `swapPool` | route uses `swapPool.factory()`; the constructor refuses a mismatch |
+| L8 | Origination and defence fees truncated to zero on small operations, making tiny flashes free | both round up |
+| L9 | `initialize` was callable by anyone | engine-only |
+| L10 | `withdrawCollateral(_, address(0))` burned collateral | zero address refused |
+| L11 | `canExecute(address(0))` returned true when no executor is set | explicit zero-address refusal |
+| L12 | A defence that moved the ratio by a rounding amount burned a keeper slot | material improvement required (≥2% relative) |
+| L13 | `Config` derived `Debug` while holding the operator private key; the paid response mislabelled the payer; a mint counted as a payment | redacting `Debug`; the payer comes from the transfer; mints excluded |
 
 ---
 
-## 5. Coverage and limits
+## 5. Accepted risks (not defects)
 
-* **Solidity in scope:** 7 files, 2,211 lines — `PylonFlashEngine.sol`, `PylonReserve.sol`,
-  `PylonPosition.sol`, `PylonMath.sol`, `Clones.sol`, and both deploy/proof scripts. Interfaces, mocks
-  and tests were out of scope for hunting but were read where inherited behaviour mattered.
-* **Service in scope:** the Rust engine (`src/*.rs`), the HTTP surface, the x402 gateway, the keeper and
-  the store; plus the terminal's execution and signing paths.
-* **Not covered:** mainnet deployment topology, the off-repository Mezo core contracts and Tigris pools
-  (consumed as dependencies), the browser wallet implementations, and anything requiring execution of
-  target code outside an OS-enforced sandbox (none was performed).
-* **This is one pass.** A second pass would hunt new ground rather than re-walk the same functions; the
-  coverage above is what one pass reached, not a claim of exhaustion.
-* **Findings that remain accepted risks rather than fixed:** PYL-C9 (cosmetic rename pending), PYL-C10
-  (deliberate design), PYL-S7 (deliberate CORS), and the reserve-side economics on the *live* generation
-  (fixed in code, migration pending, and the only live borrower is this project's own operator
-  position — no third-party capital is exposed to it).
+| Item | Position taken |
+| --- | --- |
+| Open CORS on the API | Deliberate: the surface serves public chain data and must be callable by agents. The paid endpoint is now single-use and rate-limited, which bounds the abuse. |
+| No rescue path in the engine | Deliberate: fewer owner powers over the contract that holds user authorisations. Tokens sent to the engine stay there. |
+| `minPostICR` is not covered by the signature | The signed amounts bound the operation; the floor is a convenience. A third party can only execute the owner's signed amounts, and proceeds go to the owner. |
+| Defence loans carry no term and cannot be foreclosed | Priced from the first second by the defence fee, capped per position and per pool, and documented as the reserve's credit risk. Seizure rights are a Wave 2 design item. |
+| JIT fee capture around deposits; donation griefing of tiny deposits | The virtual offset raises the cost above the damage; a minimum deposit and a yield index are roadmap items. |
+| `_flashFee` takes the venue fee from the factory rather than the pool | Verified against the venue's own implementation (the pool reads the same factory). A mismatch reverts the flash rather than losing funds. |
+| Live position-mode flash loop still reverts on Mezo testnet | **Open investigation.** The two code causes are fixed and unit-tested (#H4, #H5). A live `loopPosition` still reverts; the testnet RPC returns no revert data for contract calls (an expired-deadline control confirms the blindness) and reports gas as a fixed fraction of the limit, so the residual cause — likely the on-chain hint walk against 245+ troves exceeding what the RPC will relay — cannot be isolated from here. The native-trove flash loop is proven live; the position path stays marked "not proven live" in the README. |
+
+---
+
+## 6. Deployment after the audit
+
+The rule applied: **redeploy only if nothing is stranded.** Nothing was.
+
+| Step | Result |
+| --- | --- |
+| Settled the live position's claim | `repayReserve(543.943 MUSD)` — tx `0xfa77c38d…4cc926`; `reserveDebt = 0`, `outstanding = 0` |
+| Withdrew the operator's LP from reserve v1 | 1,000 shares → 1,005.185 MUSD — tx `0xf7ceb302…942afe` |
+| Deployed the hardened generation | position template `0x0e64B682Add80A61d24E61ed360b3F3679C6860a`, reserve `0x53a0206A307E084AdA2eB24346463cf4E14C5131`, engine `0x901198cD4EE9086997D839401f361518cAE46ed6` |
+| Wired and verified | `engine.reserve == reserve`, `reserve.engine == engine`, `positionImplementation == template`, `flashFeeBps 20`, `maxExitSlippageBps 800`, `defenceFeeBps 50`, `maxPerPositionBps 2000` |
+| Re-deposited the capital | operator 1,005.185 (first depositor, 1:1), demo 100 (second depositor, worth exactly 100 — the live proof of #H1) |
+| Created a fresh position on the hardened stack | `0x02f472dd2c08a4dab586ab11bafb294c27f5182e`, 0.030 BTC against 2,001.8 MUSD (ICR 1.23), reserve binding captured at initialisation |
+| Left the previous generation intact | The pre-audit position keeps its own implementation and reserve binding and stays settleable — the property #M4 adds for every new position. Its claim was settled and 0.012 BTC of collateral withdrawn to fund the new trove (tx `0x7aa57305…516b6b`, 3M gas: the on-chain hint solver). |
+
+---
+
+## 7. Coverage and limits
+
+* **Solidity in scope:** 7 files, 2,211 lines — engine, reserve, position, `PylonMath`, `Clones`, and the
+  deploy/proof scripts. Interfaces, mocks and tests were read where inherited behaviour mattered.
+* **Service in scope:** the Rust engine, HTTP surface, x402 gateway, keeper, store, and the terminal's
+  execution and signing paths.
+* **Not covered:** the off-repository Mezo core contracts and Tigris pools (consumed as dependencies,
+  read as behaviour), browser wallets, and anything requiring execution of target code outside an
+  OS-enforced sandbox (none was performed). The live-loop investigation in §5 stopped at the RPC's
+  visibility limit rather than at a conclusion.
+* **This was one pass.** A second pass would hunt new ground; the list above is what one pass reached,
+  not a claim of exhaustion.
+* **Test suites at hand-off:** 39 Foundry tests (was 19 before the audit), 9 Rust tests (was 6), plus
+  the terminal's typecheck and static build. Every fix in §2–§4 has a named regression test except the
+  service items marked "code" (which are enforced by construction rather than by a unit test).

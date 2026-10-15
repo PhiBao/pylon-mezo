@@ -42,9 +42,9 @@ export const explorerBlock = (block: number): string => `${EXPLORER_URL}/block/$
  */
 export const DEPLOYED = {
   chainId: MEZO_TESTNET_ID,
-  engine: getAddress('0x94b6384F9202F27c3ab1b3b0c6f1A8b7218F45F6'),
-  reserve: getAddress('0xcc9dD7197237bbb645978D9A92872C7F82B6b881'),
-  positionImplementation: getAddress('0x504DcDD85FD82C2974F27b1f71B6cc116EbE18bE'),
+  engine: getAddress('0x901198cD4EE9086997D839401f361518cAE46ed6'),
+  reserve: getAddress('0x53a0206A307E084AdA2eB24346463cf4E14C5131'),
+  positionImplementation: getAddress('0x0e64B682Add80A61d24E61ed360b3F3679C6860a'),
   musd: getAddress('0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503'),
   btc: getAddress('0x7b7C000000000000000000000000000000000000'),
   flashPool: getAddress('0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e'),

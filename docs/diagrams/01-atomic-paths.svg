@@ -361,8 +361,8 @@
 
   <!-- ═══ footnote: the live testnet addresses ═══ -->
   <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#6B7280">
-    <text x="40" y="776">Mezo Testnet · chainId 31611 · PylonFlashEngine 0x94b6384F9202F27c3ab1b3b0c6f1A8b7218F45F6 · BorrowerOperationsSignatures 0xD757e3646AF370b15f32EB557F0F8380Df7D639e</text>
-    <text x="40" y="786">MUSD 0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503 · BTC collateral 0x7b7C000000000000000000000000000000000000 · PylonReserve 0xcc9dD7197237bbb645978D9A92872C7F82B6b881 · BorrowerOperations 0xCdF7028ceAB81fA0C6971208e83fa7872994beE5</text>
+    <text x="40" y="776">Mezo Testnet · chainId 31611 · PylonFlashEngine 0x901198cD4EE9086997D839401f361518cAE46ed6 · BorrowerOperationsSignatures 0xD757e3646AF370b15f32EB557F0F8380Df7D639e</text>
+    <text x="40" y="786">MUSD 0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503 · BTC collateral 0x7b7C000000000000000000000000000000000000 · PylonReserve 0x53a0206A307E084AdA2eB24346463cf4E14C5131 · BorrowerOperations 0xCdF7028ceAB81fA0C6971208e83fa7872994beE5</text>
     <text x="40" y="796">Tigris flash venue MUSD/mUSDC 0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e · Tigris swap venue MUSD/BTC 0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9 · Router 0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9</text>
   </g>
 </svg>

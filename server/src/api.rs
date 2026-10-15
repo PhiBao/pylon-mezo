@@ -584,7 +584,9 @@ async fn verify_onchain_payment(
         let from = Address::from_slice(&topics[1].0[12..]);
         let to = Address::from_slice(&topics[2].0[12..]);
         let value = U256::from_be_slice(&data);
-        if to == pay_to && value >= amount {
+        // A mint emits `Transfer(0x0, to, value)`: it moves value to the address but pays nothing, so
+        // it must not count as a settlement.
+        if from != Address::ZERO && to == pay_to && value >= amount {
             return Ok(Some(SettledPayment {
                 payer: from,
                 block_time,

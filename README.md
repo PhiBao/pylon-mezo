@@ -423,12 +423,21 @@ curl -i http://localhost:8787/api/v1/x402/trove-report/0xe0773065977747d34e94397
 
 ### Deployed on Mezo Testnet (chain 31611)
 
+**Audited generation (current).** This is the generation the security audit produced; every fix in
+[`docs/AUDIT.md`](docs/AUDIT.md) is deployed here.
+
 | Contract | Address |
 | --- | --- |
-| `PylonFlashEngine` | [`0x94b6384F9202F27c3ab1b3b0c6f1A8b7218F45F6`](https://explorer.test.mezo.org/address/0x94b6384F9202F27c3ab1b3b0c6f1A8b7218F45F6) |
-| `PylonReserve` | [`0xcc9dD7197237bbb645978D9A92872C7F82B6b881`](https://explorer.test.mezo.org/address/0xcc9dD7197237bbb645978D9A92872C7F82B6b881) |
-| `PylonPosition` (template) | [`0x504DcDD85FD82C2974F27b1f71B6cc116EbE18bE`](https://explorer.test.mezo.org/address/0x504DcDD85FD82C2974F27b1f71B6cc116EbE18bE) |
-| Live shielded position | [`0xe0773065977747d34e94397fc902178709ccdc23`](https://explorer.test.mezo.org/address/0xe0773065977747d34e94397fc902178709ccdc23) |
+| `PylonFlashEngine` | [`0x901198cD4EE9086997D839401f361518cAE46ed6`](https://explorer.test.mezo.org/address/0x901198cD4EE9086997D839401f361518cAE46ed6) |
+| `PylonReserve` | [`0x53a0206A307E084AdA2eB24346463cf4E14C5131`](https://explorer.test.mezo.org/address/0x53a0206A307E084AdA2eB24346463cf4E14C5131) |
+| `PylonPosition` (template) | [`0x0e64B682Add80A61d24E61ed360b3F3679C6860a`](https://explorer.test.mezo.org/address/0x0e64B682Add80A61d24E61ed360b3F3679C6860a) |
+| Shielded position (this generation) | [`0x02f472dd2c08a4dab586ab11bafb294c27f5182e`](https://explorer.test.mezo.org/address/0x02f472dd2c08a4dab586ab11bafb294c27f5182e) |
+| Reserve LPs | operator 1,005.185 MUSD (first depositor) and the demo wallet 100 MUSD (second depositor) |
+
+**Previous generation (settled, kept for lineage).** Engine `0x94b6384F…`, reserve `0xcc9dD719…`,
+template `0x504DcDD8…`, shielded position `0xe0773065…`. Its 543.943 MUSD claim was settled, its LP
+capital moved to the audited reserve, and it keeps its own implementation and reserve binding — which is
+the property the audit's position-reserve binding adds for every new position.
 
 ### Real vs simulated — stated plainly
 
@@ -436,11 +445,13 @@ curl -i http://localhost:8787/api/v1/x402/trove-report/0xe0773065977747d34e94397
 | --- | --- |
 | Flash Loop, Flash Unwind, Flash Exit on a native Mezo trove | **Real, live, mined.** Three transactions above, against live pools. |
 | EIP-712 authorisation | **Real.** Verified by Mezo's deployed `BorrowerOperationsSignatures`; the engine's digest construction is unit-tested against an independent `cast`-derived vector. |
-| Shield reserve (shares, caps, fee revenue) | **Real.** 1,000 MUSD seeded; 5.18 MUSD of flash fees received; 543.94 MUSD lent to one position. |
-| Shield defence | **Real.** Permissionless call by a third party; ICR 142% → 180%; verified on-chain. |
+| Shield reserve (shares, caps, fee revenue) | **Real.** v1 earned 5.18 MUSD of flash fees on 1,000 MUSD of capital and lent 543.94 MUSD to one position; that capital then migrated to the audited reserve (1,005.185 + 100 MUSD of deposits). |
+| Deposit pricing after the audit | **Real, measured on chain.** The second depositor's 100 MUSD is worth exactly 100 MUSD (`convertToAssets(shares) = 1e20`); the audited code returned ~50. |
+| Shield defence | **Real.** Permissionless call by a third party on the v1 generation: ICR 142% → 180%. The audited generation re-arms the same policy with a defence fee, a concentration cap and Mezo's debt floor respected. |
+| Claim lifecycle | **Real.** A position settled its 543.943 MUSD claim, and the same position's collateral withdrawal reverted with `ReserveDebtOutstanding` (`0xa06fe405`) while the claim stood. |
 | Claim enforcement (`ReserveDebtOutstanding`) | **Real.** A collateral withdrawal from the owner while the loan is outstanding reverts. |
 | Redemption radar and quotes | **Real chain reads.** Full `SortedTroves` index, batched JSON-RPC; previews executed on the deployed engine. |
-| Position flash loop (engine → position → Mezo) | **Implemented and unit-tested; not yet executed on-chain for the live position.** The live position predates engine v4 and pays for on-chain hint resolution (~4.75M gas), which the 10M block limit makes unreliable; v4 passes solver hints and exists for new positions. The same code path without the flash leg (`PylonPosition.addCollateral`) has executed live: debt 2,001.8 → 2,602.4 MUSD. |
+| Position flash loop (engine → position → Mezo) | **Implemented, unit-tested against a faithful harness, and still not proven live — with the reason now known.** The audit found the two code defects that broke it (a BTC balance delta that double-counted `msg.value`, and an MUSD delta that underflowed on every repayment); both are fixed and covered by `test_position_flashLegsExecute`, whose harness now models Mezo's unified native/ERC-20 BTC ledger. A live `loopPosition` on the audited engine still reverts, and this testnet's RPC returns no revert data for contract calls (an expired-deadline control call returns nothing either) while reporting gas as a fixed fraction of the submitted limit, so the residual cause cannot be isolated from here. The leading hypothesis is the on-chain `SortedTroves` hint walk against 245+ troves exceeding what the RPC will relay — the same cost that makes a live collateral withdrawal consume ~3M gas. It is an open item, not a claim. |
 | `x402` endpoint | **Real 402 challenge + on-chain settlement verification.** The MUSD transfer is verified by the service against a mined receipt and transfer log; the facilitator path is implemented but optional. |
 | Native BTC-wallet trove opening through the UI | **Not implemented.** Opening a trove is available on `mezo.org`; Pylon operates on troves that exist. |
 
@@ -454,12 +465,28 @@ and only upward.
 
 ## 9. Security and reliability
 
-A source-only audit was run after the build: twelve speciality lenses over the Solidity plus a
-boundary-first review of the service, HTTP and terminal layers. It produced 17 findings (1 high, 6
-medium, 6 low, 4 informational); 14 are fixed with regression tests, the rest are documented accepted
-risks. Full report, evidence and the deployment decisions: **[`docs/AUDIT.md`](docs/AUDIT.md)**.
+A source-only audit was run after the build: twelve adversarial speciality lenses over the Solidity
+(math, access control, economics, execution trace, invariants, periphery, first principles, asymmetry,
+boundaries, numerical gaps, trust gaps, flow gaps) plus a boundary-first review of the service, HTTP and
+terminal layers. It produced **35 findings — 5 high, 12 medium, 13 low, 5 informational — of which 32
+are fixed**, with 39 contract tests and 9 service tests as evidence. Four of the five high findings were
+in code paths that had never executed successfully on chain: they were latent, not exploited. Full
+report, proofs and the deployment decisions: **[`docs/AUDIT.md`](docs/AUDIT.md)**.
 
 Highlights worth knowing before you read the code:
+
+* **A signature now binds where the money goes.** Mezo's ballot binds the trove and the engine, not the
+  payout address, so a copied signed request could have redirected the residual collateral to whoever
+  submitted it first. Proceeds follow the owner unless the owner is the caller.
+* **The two defects that broke the position-mode flash legs are fixed.** `executeTroveAdjust` double-counted
+  `msg.value` in its BTC baseline (Mezo keeps one ledger for native and ERC-20 BTC) and underflowed on
+  every repayment it pre-funded. Both were latent panics, not exploits — and both now have tests.
+* **A position can no longer borrow back what the reserve lent it.** Borrowed MUSD repays the reserve's
+  claim first while a loan is outstanding, so the claim cannot be converted into the owner's cash.
+* **Deposits are priced correctly.** The reserve priced shares against a balance that already held the
+  deposit; a later depositor lost up to half. Fixed, and proven live with a second depositor.
+* **Exits are bounded.** The close path sells collateral at a price that must stay within 800 bps of the
+  oracle, so a pushed pool cannot make a close hand over more BTC than the market implies.
 
 * The paid `x402` endpoint is single-use per settlement, age-bounded, and rate-limited per client. A
   settled transfer no longer unlocks unlimited requests.
@@ -482,6 +509,9 @@ Highlights worth knowing before you read the code:
 * **The signature is the slippage guard.** The user signs exact collateral and debt deltas. If the pool
   cannot deliver the signed collateral, the transaction reverts; nothing "splits the difference". The
   engine can never exceed the authorised movement.
+* **Proceeds follow the owner.** A relayer, keeper or anyone else who submits a user's signed request can
+  only route the proceeds to the trove owner; only the owner may name another destination. The same rule
+  covers position operations, so a nominated executor cannot pay itself.
 * **Flash callback authentication.** `hook` requires `msg.sender == flashPool`, an active self-initiated
   flash (`_op != NONE`) and `sender == address(this)`. A third party cannot invoke the callback, and the
   engine cannot be tricked into treating an arbitrary call as a flash.

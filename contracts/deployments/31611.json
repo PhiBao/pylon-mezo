@@ -1,9 +1,9 @@
 {
   "chainId": 31611,
   "network": "Mezo Testnet (Matsnet)",
-  "pylonFlashEngine": "0x94b6384F9202F27c3ab1b3b0c6f1A8b7218F45F6",
-  "pylonReserve": "0xcc9dD7197237bbb645978D9A92872C7F82B6b881",
-  "pylonPositionImplementation": "0x504DcDD85FD82C2974F27b1f71B6cc116EbE18bE",
+  "pylonFlashEngine": "0x901198cD4EE9086997D839401f361518cAE46ed6",
+  "pylonReserve": "0x53a0206A307E084AdA2eB24346463cf4E14C5131",
+  "pylonPositionImplementation": "0x0e64B682Add80A61d24E61ed360b3F3679C6860a",
   "musd": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
   "btc": "0x7b7C000000000000000000000000000000000000",
   "flashPool": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
@@ -21,7 +21,14 @@
     "nativeTroveOperator": "0x3bEe06fA351E66e298eF4DDcbE6052770775a93e",
     "pylonPosition": "0xe0773065977747d34e94397fc902178709ccdc23",
     "positionImplementationInUse": "0xCB33f3844A6D2119d2fB15B35273BBAe74673e4B",
-    "note": "The live position predates engine v4 and therefore runs the v2 position implementation, which resolves SortedTroves hints on-chain. Positions created through engine v4 use pylonPositionImplementation and accept solver hints."
+    "note": "The live position predates engine v4 and therefore runs the v2 position implementation, which resolves SortedTroves hints on-chain. Positions created through engine v4 use pylonPositionImplementation and accept solver hints.",
+    "shieldedPosition": "0x02f472dd2c08a4dab586ab11bafb294c27f5182e",
+    "legacyShieldedPosition": "0xe0773065977747d34e94397fc902178709ccdc23",
+    "previousGeneration": {
+      "engine": "0x94b6384F9202F27c3ab1b3b0c6f1A8b7218F45F6",
+      "reserve": "0xcc9dD7197237bbb645978D9A92872C7F82B6b881",
+      "note": "settled and drained; kept for the lineage. Its position keeps its own implementation and reserve binding, so it stays settleable."
+    }
   },
   "history": {
     "engineV1": "0x0bafCB6C0F10b5F6a5e1C9f7514cB736699c9CF9",
@@ -29,6 +36,27 @@
     "engineV2": "0x02d479B9F53ACd69c1965dBcFfaff90959E69E05",
     "engineV3": "0xA606F63b02B14B9c51b50E1814d1c301733C139d",
     "engineV3Added": "Stage guards: nested legs (swap, position call) are wrapped so a failure reports which leg broke and the inner revert data, instead of a bare arithmetic panic.",
-    "engineV4Added": "Passes solver-computed SortedTroves hints into positions, which validates them in-contract and falls back to HintHelpers with 12 trials instead of 40. On-chain resolution was measured at ~4.75M gas, close enough to Mezo's 10M block limit to be a reliability risk."
+    "engineV4Added": "Passes solver-computed SortedTroves hints into positions, which validates them in-contract and falls back to HintHelpers with 12 trials instead of 40. On-chain resolution was measured at ~4.75M gas, close enough to Mezo's 10M block limit to be a reliability risk.",
+    "engineV5AuditedGeneration": {
+      "engine": "0x901198cD4EE9086997D839401f361518cAE46ed6",
+      "reserve": "0x53a0206A307E084AdA2eB24346463cf4E14C5131",
+      "positionImplementation": "0x0e64B682Add80A61d24E61ed360b3F3679C6860a",
+      "why": "The security audit (docs/AUDIT.md) found five High and twelve Medium defects. This generation carries all of them: signed payouts bound to the owner, the lien guard on addCollateral, pre-transfer deposit pricing with the ERC-4626 virtual offset, both position-mode balance deltas, an oracle-bounded exit, priced and capped shield credit, reserve captured at initialisation, engine handovers refused with live loans, bad-debt write-off, safe transfers, round-up fees.",
+      "migration": [
+        "settled the v1 claim: 543.943 MUSD (tx 0xfa77c38d35ae2b765ec26b2215094d771b3897eba1558e2be18836ebfc4cc926)",
+        "withdrew the operator's 1,000 v1 shares for 1,005.185 MUSD (tx 0xf7ceb30254b1dd527c613b6212a7a485ac44ae490d5691c78b297a0f91942afe)",
+        "re-deposited into the v2 reserve: 1,005.185 MUSD (operator, first depositor) + 100 MUSD (demo, second depositor)",
+        "created the first audited-generation position: 0x02f472dd2c08a4dab586ab11bafb294c27f5182e (0.030 BTC, ICR 1.23)"
+      ]
+    }
+  },
+  "audit": {
+    "report": "docs/AUDIT.md",
+    "findings": 35,
+    "fixed": 32,
+    "regressionTests": {
+      "contracts": 39,
+      "service": 9
+    }
   }
 }

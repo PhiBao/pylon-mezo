@@ -91,6 +91,9 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
     error NoImprovement();
     error TroveNotActive();
     error BadShieldConfig();
+    error TransferFailed();
+    error FullRepaymentNotSupported();
+    error NotReserve();
 
     modifier onlyOwner() {
         if (msg.sender != owner) revert OnlyOwner();
@@ -103,6 +106,32 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
     }
 
     receive() external payable {}
+
+    /// @dev Transfers are checked: a token that returns `false` instead of reverting would otherwise
+    ///      leave value behind while the operation reports success.
+    function _safeTransfer(IERC20 token, address to, uint256 amount) private {
+        if (amount == 0) return;
+        (bool ok, bytes memory data) = address(token).call(abi.encodeCall(IERC20.transfer, (to, amount)));
+        if (!ok || (data.length != 0 && !abi.decode(data, (bool)))) revert TransferFailed();
+    }
+
+    /// @dev Borrowed MUSD cannot be cashed out while the reserve holds a claim on this position:
+    ///      without this, an owner could borrow the capacity a defence created, keep the MUSD, and
+    ///      leave the reserve's loan backed by a trove it cannot reach.
+    function _routeGainToClaimOrOwner(uint256 gained) private {
+        if (gained == 0) return;
+        if (reserveDebt == 0) {
+            _safeTransfer(musd, owner, gained);
+            return;
+        }
+        uint256 toClaim = gained > reserveDebt ? reserveDebt : gained;
+        address r = engine_reserve();
+        _safeTransfer(musd, r, toClaim);
+        IPylonReserve(r).recordRepayment(toClaim);
+        reserveDebt -= toClaim;
+        emit ReserveRepaid(toClaim, reserveDebt);
+        if (gained > toClaim) _safeTransfer(musd, owner, gained - toClaim);
+    }
 
     // ---------------------------------------------------------------------
     // Lifecycle
@@ -134,6 +163,9 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
 
     /// @notice Who may drive Pylon flash operations for this position.
     function canExecute(address account) external view override returns (bool) {
+        // `executor` defaults to the zero address, and no call has a zero sender, but the guard is
+        // written explicitly so an unset executor never reads as an authorised delegate.
+        if (account == address(0)) return false;
         return account == owner || account == executor;
     }
 
@@ -154,7 +186,7 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
         (address upper, address lower) = _freshHints(msg.value, _debtAfterOpen(debtAmount));
         borrowerOps.openTrove{value: msg.value}(debtAmount, upper, lower);
         uint256 received = musd.balanceOf(address(this));
-        if (received > 0) musd.transfer(owner, received);
+        if (received > 0) _routeGainToClaimOrOwner(received);
         emit Opened(msg.value, debtAmount);
     }
 
@@ -169,14 +201,46 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
             uint256 before = musd.balanceOf(address(this));
             borrowerOps.adjustTrove{value: msg.value}(0, debtAdjustment, true, upper, lower);
             uint256 gained = musd.balanceOf(address(this)) - before;
-            if (gained > 0) musd.transfer(owner, gained);
+            _routeGainToClaimOrOwner(gained);
         }
     }
 
-    /// @notice Repays debt from MUSD the position already holds.
+    /// @notice Repays part of the debt from MUSD the position already holds.
+    /// @dev A repayment that clears the debt must go through the exit path: `SortedTroves` needs a
+    ///      non-zero nominal ratio, so a zero-debt hint lookup would revert with an arithmetic panic
+    ///      instead of a usable error.
     function repay(uint256 amount) external onlyOwner nonReentrant {
+        (, uint256 debt) = _state();
+        if (amount >= debt) revert FullRepaymentNotSupported();
         (address upper, address lower) = _hintsForRepay(amount);
         borrowerOps.repayMUSD(amount, upper, lower);
+    }
+
+    /// @notice Claims collateral that Mezo owes this trove, for example the surplus left after a full
+    ///         redemption. Anyone may call it; the proceeds follow the reserve claim first.
+    function claimCollateralSurplus() external nonReentrant {
+        uint256 before = btc.balanceOf(address(this));
+        borrowerOps.claimCollateral();
+        uint256 gained = btc.balanceOf(address(this)) - before;
+        if (gained == 0) return;
+        _safeTransfer(btc, owner, gained);
+    }
+
+    /// @notice Clears this position's mirror of a defence loan the reserve has written off.
+    /// @dev Without it a written-off loan could never be settled: `repayReserve` needs the reserve to
+    ///      record a repayment, and the reserve has nothing left to record, so `reserveDebt` would stay
+    ///      above zero and the collateral would be locked forever.
+    function writeOffReserveDebt(uint256 amount) external {
+        if (msg.sender != engine_reserve()) revert NotReserve();
+        reserveDebt = amount >= reserveDebt ? 0 : reserveDebt - amount;
+        emit ReserveRepaid(amount, reserveDebt);
+    }
+
+    /// @notice Transfers a token that is not part of the position's accounting.
+    /// @dev Collateral and MUSD are guarded by the reserve claim; other tokens are free to move.
+    function sweep(address token, address to) external onlyOwner {
+        if (token == address(btc) || token == address(musd)) revert ReserveDebtOutstanding();
+        _safeTransfer(IERC20(token), to, IERC20(token).balanceOf(address(this)));
     }
 
     /// @notice Withdraws collateral. Blocked while a reserve defence loan is outstanding, so the
@@ -185,11 +249,12 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
         if (to == address(0)) revert ZeroAddress();
         if (reserveDebt != 0) revert ReserveDebtOutstanding();
         (address upper, address lower) = _hintsForWithdraw(amount);
-        uint256 before = btc.balanceOf(address(this));
         borrowerOps.withdrawColl(amount, upper, lower);
-        uint256 gained = btc.balanceOf(address(this)) - before;
-        if (gained > 0) btc.transfer(to, gained);
-        emit CollateralWithdrawn(gained, to);
+        // The whole balance leaves, not only this call's delta: the engine routes loop and unwind
+        // surpluses into the position, and a delta-only exit would strand them here forever.
+        uint256 balance = btc.balanceOf(address(this));
+        _safeTransfer(btc, to, balance);
+        emit CollateralWithdrawn(balance, to);
     }
 
     /// @notice Settles a reserve defence loan: transfers MUSD to the reserve and books it.
@@ -233,15 +298,33 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
         if (!p.enabled) revert ShieldDisabled();
 
         uint256 price = priceFeed.fetchPrice();
-        uint256 coll = troveManager.getTroveColl(address(this));
-        uint256 debt = troveManager.getTroveDebt(address(this));
+        // Mezo redistributes a liquidated trove's collateral and debt across the remaining troves.
+        // The plain getters exclude those pending amounts, so the shield would size against a ratio
+        // that looks better than the real one and would stop short of its own target.
+        (
+            uint256 coll,
+            uint256 principal,
+            uint256 interest,
+            uint256 pendingColl,
+            uint256 pendingDebt,
+            uint256 pendingInterest
+        ) = troveManager.getEntireDebtAndColl(address(this));
+        coll += pendingColl;
+        uint256 debt = principal + interest + pendingDebt + pendingInterest;
         uint256 icr = PylonMath.collateralRatio(coll, debt, price);
         if (icr >= p.triggerICR) revert Healthy();
 
         uint256 maxDebtAtTarget = PylonMath.debtAtRatio(coll, price, p.targetICR);
         uint256 want = debt > maxDebtAtTarget ? debt - maxDebtAtTarget : 0;
-        if (want == 0) revert NothingToRepay();
         if (want > p.maxPerCall) want = p.maxPerCall;
+
+        // Mezo rejects a repayment that takes the net debt below its floor, so the largest useful
+        // defence is capped there. The caller then sees an honest "cannot defend further" instead of a
+        // protocol-level revert that would leave the position undefended.
+        uint256 floorDebt = borrowerOps.minNetDebt() + borrowerOps.MUSD_GAS_COMPENSATION();
+        uint256 repayable = debt > floorDebt ? debt - floorDebt : 0;
+        if (want > repayable) want = repayable;
+        if (want == 0) revert NothingToRepay();
 
         IPylonReserve r = IPylonReserve(engine_reserve());
         uint256 available = r.availableToLend(address(this));
@@ -284,6 +367,10 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
         address lowerHint
     ) external payable override onlyEngine nonReentrant {
         if (troveManager.getTroveStatus(address(this)) != ITroveManager.Status.active) revert TroveNotActive();
+        // The reserve's claim is secured by this trove's collateral. Letting collateral leave while a
+        // defence loan is outstanding would hollow out the claim, so every outflow path is guarded —
+        // not only the owner-facing withdrawal.
+        if (collWithdrawal > 0 && reserveDebt != 0) revert ReserveDebtOutstanding();
 
         uint256 coll = troveManager.getTroveColl(address(this));
         uint256 debt = troveManager.getTroveDebt(address(this));
@@ -292,11 +379,18 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
         (address upper, address lower) = _hints(newColl, newDebt, upperHint, lowerHint);
 
         uint256 musdBefore = musd.balanceOf(address(this));
-        uint256 btcBefore = btc.balanceOf(address(this));
+        // Mezo keeps one ledger for native and ERC-20 BTC, so `msg.value` is already credited to this
+        // contract when the body runs. Reading the balance without subtracting it would make the
+        // post-call delta underflow (Panic 0x11) on every collateral-adding call, which is what broke
+        // the position flash loop on chain.
+        uint256 btcBefore = btc.balanceOf(address(this)) - msg.value;
 
         borrowerOps.adjustTrove{value: msg.value}(collWithdrawal, debtChange, isDebtIncrease, upper, lower);
 
-        uint256 musdGain = musd.balanceOf(address(this)) - musdBefore;
+        // A debt increase leaves a gain to forward; a repayment *burns* MUSD the engine pre-funded, so
+        // the balance falls. Subtracting blindly would underflow (Panic 0x11) and revert every unwind.
+        uint256 musdAfter = musd.balanceOf(address(this));
+        uint256 musdGain = musdAfter > musdBefore ? musdAfter - musdBefore : 0;
         if (musdGain > 0) musd.transfer(engine, musdGain);
         uint256 btcGain = btc.balanceOf(address(this)) - btcBefore;
         if (btcGain > 0) btc.transfer(engine, btcGain);

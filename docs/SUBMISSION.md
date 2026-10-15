@@ -83,9 +83,9 @@ flash venue address from the environment because it is chain-specific.
 ### Project readiness
 
 **Testnet deployment**, live and operating: `PylonFlashEngine`
-`0x94b6384F9202F27c3ab1b3b0c6f1A8b7218F45F6`, `PylonReserve` `0xcc9dD7197237bbb645978D9A92872C7F82B6b881`,
-`PylonPosition` template `0x504DcDD85FD82C2974F27b1f71B6cc116EbE18bE`, and a live shielded position
-`0xe0773065977747d34e94397fc902178709ccdc23`.
+`0x901198cD4EE9086997D839401f361518cAE46ed6`, `PylonReserve` `0x53a0206A307E084AdA2eB24346463cf4E14C5131`,
+`PylonPosition` template `0x0e64B682Add80A61d24E61ed360b3F3679C6860a`, and a live shielded position
+`0x02f472dd2c08a4dab586ab11bafb294c27f5182e`.
 
 ### Links
 
