@@ -1,0 +1,16 @@
+# secrets
+.env
+**/.env
+# build output
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/lib/
+server/target/
+server/data/
+web/node_modules/
+web/.next/
+web/out/
+web/next-env.d.ts
+# os
+.DS_Store

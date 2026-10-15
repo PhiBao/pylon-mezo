@@ -1,0 +1,9 @@
+# pnpm workspace config for the Pylon terminal (single package).
+#
+# The terminal only uses HTTP transports, so the optional native helpers pulled in by wagmi's
+# WebSocket-capable dependencies are explicitly denied: this keeps `pnpm install` non-interactive and
+# the install reproducible. Their pure-JS paths are what the browser bundle uses anyway.
+allowBuilds:
+  bufferutil: false
+  keccak: false
+  utf-8-validate: false

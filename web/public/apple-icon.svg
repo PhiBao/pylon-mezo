@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" width="180" height="180" role="img" aria-label="Pylon">
+  <rect width="180" height="180" fill="#0A0B0D" />
+  <g transform="translate(26 26) scale(4)">
+    <path d="M3 29.5V11L19.5 3.5v9L9.5 18.5v11H3Z" fill="#E8EAED" />
+    <path d="M29 29.5V11L12.5 3.5v9l10 6v11H29Z" fill="#E8EAED" />
+    <rect x="14.5" y="1.5" width="3" height="28" fill="#F7931A" />
+  </g>
+</svg>

@@ -1,0 +1,338 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" width="1200" height="820" role="img"
+     aria-labelledby="system-map-title system-map-desc" font-family="Space Grotesk, Inter, system-ui, sans-serif">
+  <title id="system-map-title">Pylon system map: wallets, terminal, Rust service, Mezo Testnet</title>
+  <desc id="system-map-desc">Architecture of Pylon: user wallets and an x402 agent on the left, a Next.js terminal and a
+    Rust service (indexer, solver, keeper, x402 gateway) in the middle, and the live Mezo Testnet contracts on the
+    right — Mezo core, the Tigris pools, and the three Pylon contracts — separated by a marked trust boundary.</desc>
+
+  <defs>
+    <marker id="sm-arrow-btc" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#F7931A"/>
+    </marker>
+    <marker id="sm-arrow-read" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#9AA1AC"/>
+    </marker>
+    <marker id="sm-arrow-green" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">
+      <polygon points="0 0, 9 3.5, 0 7" fill="#10B981"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="820" fill="#0A0B0D"/>
+
+  <!-- ═══ title block ═══ -->
+  <text x="40" y="42" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7.5" letter-spacing="0.18em" fill="#6B7280">PYLON · MEZO TESTNET · CHAINID 31611</text>
+  <text x="40" y="72" font-size="26" font-weight="600" fill="#E8EAED">Pylon system map</text>
+  <text x="40" y="94" font-size="12" fill="#9AA1AC">A terminal and a Rust service off-chain · Mezo core, Tigris and three Pylon contracts on-chain</text>
+
+  <rect x="620" y="18" width="540" height="82" rx="4" fill="#101216" stroke="#1F232B" stroke-width="1"/>
+  <text x="636" y="40" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.14em" fill="#6B7280">WHAT THIS ANSWERS</text>
+  <g font-size="11.5" fill="#9AA1AC">
+    <text x="636" y="62">What is already live on Mezo (core contracts, Tigris pools), what Pylon</text>
+    <text x="636" y="80">added (three contracts), and where the trust boundaries actually sit —</text>
+    <text x="636" y="97" fill="#E8EAED">the part a judge should attack first.</text>
+  </g>
+
+  <!-- ═══ off-chain: wallets ═══ -->
+  <rect x="40" y="120" width="136" height="240" rx="6" fill="#101216" stroke="#1F232B" stroke-width="1"/>
+  <text x="52" y="140" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.14em" fill="#9AA1AC">WALLETS</text>
+  <text x="52" y="151" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#6B7280">keys stay here</text>
+  <g>
+    <rect x="52" y="164" width="112" height="60" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+    <text x="62" y="184" font-size="10" font-weight="600" fill="#E8EAED">EVM wallet</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+      <text x="62" y="196">EIP-712 intents</text>
+      <text x="62" y="207">no approvals</text>
+      <text x="62" y="218">the chain settles</text>
+    </g>
+  </g>
+  <g>
+    <rect x="52" y="232" width="112" height="60" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+    <text x="62" y="252" font-size="10" font-weight="600" fill="#E8EAED">BTC wallet</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+      <text x="62" y="264">funds a trove</text>
+      <text x="62" y="275">receives unwind</text>
+      <text x="62" y="286">BTC stays yours</text>
+    </g>
+  </g>
+  <g>
+    <rect x="52" y="300" width="112" height="48" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+    <text x="62" y="320" font-size="10" font-weight="600" fill="#E8EAED">Agent · x402</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+      <text x="62" y="332">pays MUSD for</text>
+      <text x="62" y="343">on-chain truth</text>
+    </g>
+  </g>
+
+  <!-- ═══ off-chain: terminal ═══ -->
+  <rect x="266" y="120" width="200" height="240" rx="6" fill="#101216" stroke="#1F232B" stroke-width="1"/>
+  <text x="280" y="140" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.14em" fill="#9AA1AC">TERMINAL · NEXT.JS</text>
+  <text x="280" y="151" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#6B7280">the human surface</text>
+  <g>
+    <rect x="278" y="164" width="176" height="60" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+    <text x="288" y="184" font-size="10" font-weight="600" fill="#E8EAED">Atomic paths UI</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+      <text x="288" y="196">loop · unwind · exit</text>
+      <text x="288" y="207">shows the exact signed</text>
+      <text x="288" y="218">numbers before you sign</text>
+    </g>
+  </g>
+  <g>
+    <rect x="278" y="232" width="176" height="60" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+    <text x="288" y="252" font-size="10" font-weight="600" fill="#E8EAED">Position + queue</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+      <text x="288" y="264">ICR · rank in SortedTroves</text>
+      <text x="288" y="275">MUSD buffer ahead of you</text>
+      <text x="288" y="286">shield status</text>
+    </g>
+  </g>
+  <g>
+    <rect x="278" y="300" width="176" height="48" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+    <text x="288" y="320" font-size="10" font-weight="600" fill="#E8EAED">Signing</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+      <text x="288" y="332">renders the EIP-712 payload</text>
+      <text x="288" y="343">never holds a key</text>
+    </g>
+  </g>
+
+  <!-- ═══ off-chain: service ═══ -->
+  <rect x="556" y="120" width="190" height="240" rx="6" fill="#101216" stroke="#1F232B" stroke-width="1"/>
+  <text x="568" y="140" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.14em" fill="#9AA1AC">SERVICE · RUST</text>
+  <text x="568" y="151" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#6B7280">axum · tokio · alloy</text>
+  <g>
+    <rect x="568" y="164" width="166" height="52" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+    <text x="578" y="182" font-size="10" font-weight="600" fill="#E8EAED">indexer</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+      <text x="578" y="194">walks SortedTroves · rank</text>
+      <text x="578" y="204">+ buffer for every trove</text>
+    </g>
+  </g>
+  <g>
+    <rect x="568" y="224" width="166" height="52" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+    <text x="578" y="242" font-size="10" font-weight="600" fill="#E8EAED">solver</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+      <text x="578" y="254">exact flash amount + fee</text>
+      <text x="578" y="264">split · insert hints</text>
+    </g>
+  </g>
+  <g>
+    <rect x="568" y="284" width="166" height="52" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+    <text x="578" y="302" font-size="10" font-weight="600" fill="#E8EAED">keeper</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+      <text x="578" y="314">watches the trigger ICR ·</text>
+      <text x="578" y="324">calls defend() first</text>
+    </g>
+  </g>
+  <line x1="568" y1="344" x2="734" y2="344" stroke="#1F232B" stroke-width="1"/>
+  <text x="568" y="356" font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#9AA1AC">x402 gateway: MUSD-priced telemetry</text>
+
+  <!-- ═══ on-chain zone ═══ -->
+  <rect x="788" y="114" width="370" height="586" rx="6" fill="#0C0E12" stroke="#1F232B" stroke-width="1"/>
+  <text x="800" y="136" font-family="JetBrains Mono, ui-monospace, monospace" font-size="8.5" letter-spacing="0.12em" fill="#E8EAED">MEZO TESTNET</text>
+  <text x="800" y="149" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#6B7280">live third-party infrastructure · not ours</text>
+
+  <rect x="800" y="160" width="346" height="250" rx="4" fill="#101216" stroke="#1F232B" stroke-width="1"/>
+  <text x="812" y="180" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.12em" fill="#9AA1AC">MEZO CORE · CDP + ORACLE</text>
+  <line x1="812" y1="186" x2="1134" y2="186" stroke="#1F232B" stroke-width="1"/>
+  <g font-family="JetBrains Mono, ui-monospace, monospace">
+    <text x="812" y="206" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">MUSD</text>
+    <text x="1134" y="206" font-size="7" fill="#6B7280" text-anchor="end">0x1189…c503</text>
+    <text x="812" y="217" font-size="7" fill="#6B7280">bitcoin-backed stablecoin · minted against BTC</text>
+
+    <text x="812" y="239" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">BorrowerOperations</text>
+    <text x="1134" y="239" font-size="7" fill="#6B7280" text-anchor="end">0xCdF7…beE5</text>
+
+    <text x="812" y="261" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">BorrowerOperationsSignatures</text>
+    <text x="1134" y="261" font-size="7" fill="#F7931A" text-anchor="end">0xD757…639e</text>
+    <text x="812" y="272" font-size="7" fill="#6B7280">one EIP-712 signature lets the engine act on your trove</text>
+
+    <text x="812" y="294" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">TroveManager</text>
+    <text x="1134" y="294" font-size="7" fill="#6B7280" text-anchor="end">0xE47c…6bb0</text>
+    <text x="812" y="305" font-size="7" fill="#6B7280">system + trove interest · the exact debt lives here</text>
+
+    <text x="812" y="327" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">SortedTroves + HintHelpers</text>
+    <text x="1134" y="327" font-size="7" fill="#6B7280" text-anchor="end">0x722E…68fA</text>
+    <text x="812" y="338" font-size="7" fill="#6B7280">the redemption queue · insert hints in one call</text>
+
+    <text x="812" y="360" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">BTC · 18-decimal precompile</text>
+    <text x="1134" y="360" font-size="7" fill="#F7931A" text-anchor="end">0x7b7C…0000</text>
+    <text x="812" y="371" font-size="7" fill="#6B7280">an ERC-20 transfer moves native BTC</text>
+
+    <text x="812" y="393" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">PriceFeed · Skip oracle</text>
+    <text x="1134" y="393" font-size="7" fill="#6B7280" text-anchor="end">0x86bC…9366</text>
+  </g>
+
+  <rect x="800" y="426" width="346" height="130" rx="4" fill="#101216" stroke="#1F232B" stroke-width="1"/>
+  <text x="812" y="446" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.12em" fill="#9AA1AC">TIGRIS · THE NATIVE DEX</text>
+  <line x1="812" y1="452" x2="1134" y2="452" stroke="#1F232B" stroke-width="1"/>
+  <g font-family="JetBrains Mono, ui-monospace, monospace">
+    <text x="812" y="472" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">MUSD/mUSDC stable pool</text>
+    <text x="1134" y="472" font-size="7" fill="#6B7280" text-anchor="end">0x525F…Dc3e</text>
+    <text x="812" y="483" font-size="7" fill="#6B7280">the flash venue · ~201k MUSD · 0.01% fee · hook()</text>
+
+    <text x="812" y="505" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">MUSD/BTC volatile pool</text>
+    <text x="1134" y="505" font-size="7" fill="#6B7280" text-anchor="end">0xd16A…6AA9</text>
+    <text x="812" y="516" font-size="7" fill="#6B7280">the swap venue · 102.6M MUSD / 1,302 BTC · 0.04%</text>
+
+    <text x="812" y="538" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">Router</text>
+    <text x="1134" y="538" font-size="7" fill="#6B7280" text-anchor="end">0x9a1f…D7E9</text>
+    <text x="812" y="547" font-size="7" fill="#6B7280">a pool cannot be swapped inside its own callback</text>
+  </g>
+
+  <rect x="800" y="568" width="346" height="120" rx="4" fill="#14171C" stroke="#2A3038" stroke-width="1"/>
+  <rect x="800" y="568" width="2" height="120" fill="#F7931A"/>
+  <text x="812" y="588" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.12em" fill="#F7931A">PYLON · DEPLOYED BY US</text>
+  <line x1="812" y1="594" x2="1134" y2="594" stroke="#2A3038" stroke-width="1"/>
+  <g font-family="JetBrains Mono, ui-monospace, monospace">
+    <text x="812" y="614" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">PylonFlashEngine</text>
+    <text x="1134" y="614" font-size="7" fill="#6B7280" text-anchor="end">0x0baf…9CF9</text>
+    <text x="812" y="625" font-size="7" fill="#6B7280">swap() + hook() · EIP-712 exact amounts · fee split</text>
+
+    <text x="812" y="647" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">PylonPosition · clone per borrower</text>
+    <text x="1134" y="647" font-size="7" fill="#6B7280" text-anchor="end">0xCB33…3e4B</text>
+    <text x="812" y="658" font-size="7" fill="#6B7280">owns its own trove · permissionless defend()</text>
+
+    <text x="812" y="680" font-size="9.5" fill="#E8EAED" font-family="Space Grotesk, Inter, system-ui, sans-serif">PylonReserve</text>
+    <text x="1134" y="680" font-size="7" fill="#10B981" text-anchor="end">0xcc9d…b881</text>
+  </g>
+
+  <!-- ═══ trust boundary line ═══ -->
+  <line x1="766" y1="120" x2="766" y2="700" stroke="#E11D48" stroke-width="1" stroke-dasharray="5,4" opacity="0.55"/>
+  <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="8" text-anchor="middle" fill="#E11D48">
+    <rect x="759" y="274" width="14" height="14" rx="2" fill="#0A0B0D" stroke="#E11D48" stroke-width="1"/>
+    <text x="766" y="284.5">1</text>
+    <rect x="759" y="434" width="14" height="14" rx="2" fill="#0A0B0D" stroke="#E11D48" stroke-width="1"/>
+    <text x="766" y="444.5">2</text>
+    <rect x="759" y="654" width="14" height="14" rx="2" fill="#0A0B0D" stroke="#E11D48" stroke-width="1"/>
+    <text x="766" y="664.5">3</text>
+  </g>
+
+  <!-- ═══ connectors ═══ -->
+  <g fill="none" stroke-width="1.2">
+    <path d="M 176,190 H 266" stroke="#9AA1AC" stroke-dasharray="5,4" marker-end="url(#sm-arrow-read)"/>
+    <path d="M 176,214 H 266" stroke="#F7931A" marker-end="url(#sm-arrow-btc)"/>
+    <path d="M 176,262 H 266" stroke="#F7931A" stroke-dasharray="5,4" marker-end="url(#sm-arrow-btc)"/>
+    <path d="M 466,200 H 556" stroke="#9AA1AC" marker-end="url(#sm-arrow-read)"/>
+    <path d="M 466,240 H 556" stroke="#9AA1AC" stroke-dasharray="5,4" marker-end="url(#sm-arrow-read)"/>
+    <path d="M 746,190 H 788" stroke="#9AA1AC" stroke-dasharray="5,4" marker-end="url(#sm-arrow-read)"/>
+    <path d="M 746,220 H 788" stroke="#F7931A" marker-end="url(#sm-arrow-btc)"/>
+    <path d="M 746,600 H 788" stroke="#10B981" marker-end="url(#sm-arrow-green)"/>
+    <path d="M 584,560 H 788" stroke="#F7931A" marker-end="url(#sm-arrow-btc)"/>
+  </g>
+
+  <!-- connector labels, each on its own opaque mask in open canvas -->
+  <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="7">
+    <rect x="188" y="168" width="64" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="220" y="177" text-anchor="middle" fill="#9AA1AC">intent to sign</text>
+    <rect x="184" y="228" width="72" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="220" y="237" text-anchor="middle" fill="#F7931A">EIP-712 sig</text>
+    <rect x="190" y="276" width="60" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="220" y="285" text-anchor="middle" fill="#F7931A">BTC in / out</text>
+
+    <rect x="478" y="178" width="66" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="511" y="187" text-anchor="middle" fill="#9AA1AC">execute it</text>
+    <rect x="480" y="254" width="62" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="511" y="263" text-anchor="middle" fill="#9AA1AC">state · queue</text>
+
+    <rect x="744" y="170" width="62" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="748" y="179" fill="#9AA1AC">state reads</text>
+    <rect x="744" y="200" width="62" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="748" y="209" fill="#F7931A">signed txs</text>
+    <rect x="744" y="580" width="62" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="748" y="589" fill="#10B981">defend()</text>
+    <rect x="744" y="540" width="62" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="748" y="549" fill="#F7931A">settles MUSD</text>
+  </g>
+
+  <!-- ═══ trust boundaries, spelled out ═══ -->
+  <rect x="40" y="380" width="706" height="130" rx="6" fill="#101216" stroke="#1F232B" stroke-width="1"/>
+  <rect x="40" y="380" width="2" height="130" fill="#E11D48"/>
+  <text x="58" y="402" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.14em" fill="#E11D48">TRUST BOUNDARIES · WHAT PYLON CANNOT DO — 1 · 2 · 3 MARK THE DASHED LINE</text>
+  <g>
+    <rect x="58" y="416" width="14" height="14" rx="2" fill="none" stroke="#E11D48" stroke-width="1"/>
+    <text x="65" y="426.5" font-family="JetBrains Mono, ui-monospace, monospace" font-size="8" fill="#E11D48" text-anchor="middle">1</text>
+    <text x="82" y="427" font-size="10" font-weight="600" fill="#E8EAED">No key custody</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#9AA1AC">
+      <text x="58" y="448">the service builds and submits, but it can</text>
+      <text x="58" y="460">never sign for you: every amount moved is</text>
+      <text x="58" y="472">an amount you signed.</text>
+    </g>
+  </g>
+  <g>
+    <rect x="288" y="416" width="14" height="14" rx="2" fill="none" stroke="#E11D48" stroke-width="1"/>
+    <text x="295" y="426.5" font-family="JetBrains Mono, ui-monospace, monospace" font-size="8" fill="#E11D48" text-anchor="middle">2</text>
+    <text x="312" y="427" font-size="10" font-weight="600" fill="#E8EAED">Reserve lending caps</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#9AA1AC">
+      <text x="288" y="448">shield loans only go to positions the engine</text>
+      <text x="288" y="460">registered: capped per call, per position,</text>
+      <text x="288" y="472">and by an on-chain utilisation ceiling.</text>
+    </g>
+  </g>
+  <g>
+    <rect x="518" y="416" width="14" height="14" rx="2" fill="none" stroke="#E11D48" stroke-width="1"/>
+    <text x="525" y="426.5" font-family="JetBrains Mono, ui-monospace, monospace" font-size="8" fill="#E11D48" text-anchor="middle">3</text>
+    <text x="542" y="427" font-size="10" font-weight="600" fill="#E8EAED">Collateral release locked</text>
+    <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#9AA1AC">
+      <text x="518" y="448">a position with a shield loan outstanding</text>
+      <text x="518" y="460">cannot withdraw collateral — the claim is</text>
+      <text x="518" y="472">enforced in the contract, not by us.</text>
+    </g>
+  </g>
+
+  <!-- ═══ x402 lane ═══ -->
+  <rect x="40" y="530" width="706" height="120" rx="6" fill="none" stroke="#1F232B" stroke-width="1"/>
+  <rect x="52" y="521" width="216" height="18" rx="3" fill="#101216" stroke="#1F232B" stroke-width="1"/>
+  <text x="64" y="534" font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" letter-spacing="0.12em" fill="#9AA1AC">X402 · MACHINE-PAYABLE TELEMETRY</text>
+
+  <rect x="52" y="548" width="128" height="48" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+  <text x="62" y="566" font-size="10" font-weight="600" fill="#E8EAED">Agent</text>
+  <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+    <text x="62" y="578">GET /x402/trove-report</text>
+    <text x="62" y="589">has MUSD, no key</text>
+  </g>
+  <rect x="216" y="548" width="150" height="48" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+  <text x="226" y="566" font-size="10" font-weight="600" fill="#E8EAED">402 · quote</text>
+  <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+    <text x="226" y="578">PAYMENT-REQUIRED</text>
+    <text x="226" y="589">price in MUSD</text>
+  </g>
+  <rect x="434" y="548" width="150" height="48" rx="3" fill="#14171C" stroke="#1F232B" stroke-width="1"/>
+  <text x="444" y="566" font-size="10" font-weight="600" fill="#E8EAED">gateway · settle</text>
+  <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="6.5" fill="#6B7280">
+    <text x="444" y="578">verifies · serves</text>
+    <text x="444" y="589">MUSD settled on-chain</text>
+  </g>
+  <g fill="none" stroke-width="1.2">
+    <path d="M 180,560 H 216" stroke="#F7931A" stroke-dasharray="5,4" marker-end="url(#sm-arrow-btc)"/>
+    <path d="M 366,560 H 434" stroke="#F7931A" marker-end="url(#sm-arrow-btc)"/>
+    <path d="M 584,610 H 70 Q 62,610 62,602 V 600" stroke="#9AA1AC" stroke-dasharray="5,4" marker-end="url(#sm-arrow-read)"/>
+  </g>
+  <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="7">
+    <rect x="182" y="540" width="32" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="186" y="549" fill="#F7931A">GET</text>
+    <rect x="374" y="540" width="54" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="378" y="549" fill="#F7931A">X-PAYMENT</text>
+    <rect x="290" y="618" width="216" height="12" rx="2" fill="#0A0B0D"/>
+    <text x="398" y="627" text-anchor="middle" fill="#9AA1AC">telemetry: ICR · rank · buffer · receipt</text>
+  </g>
+
+  <!-- ═══ legend ═══ -->
+  <line x1="40" y1="722" x2="1160" y2="722" stroke="#1F232B" stroke-width="0.8"/>
+  <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="8" fill="#9AA1AC">
+    <line x1="40" y1="748" x2="64" y2="748" stroke="#F7931A" stroke-width="1.3"/>
+    <text x="74" y="751">signed on-chain write</text>
+    <line x1="300" y1="748" x2="324" y2="748" stroke="#9AA1AC" stroke-width="1.2" stroke-dasharray="5,4"/>
+    <text x="334" y="751">read / off-chain call</text>
+    <line x1="560" y1="748" x2="584" y2="748" stroke="#10B981" stroke-width="1.3"/>
+    <text x="594" y="751">keeper defence · permissionless</text>
+    <line x1="880" y1="748" x2="904" y2="748" stroke="#E11D48" stroke-width="1" stroke-dasharray="5,4"/>
+    <text x="914" y="751">trust boundary</text>
+  </g>
+
+  <!-- ═══ footnote ═══ -->
+  <g font-family="JetBrains Mono, ui-monospace, monospace" font-size="7" fill="#6B7280">
+    <text x="40" y="776">Mezo Testnet · chainId 31611 · MUSD 0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503 · BorrowerOperations 0xCdF7028ceAB81fA0C6971208e83fa7872994beE5 · BorrowerOperationsSignatures 0xD757e3646AF370b15f32EB557F0F8380Df7D639e</text>
+    <text x="40" y="788">TroveManager 0xE47c80e8c23f6B4A1aE41c34837a0599D5D16bb0 · SortedTroves 0x722E4D24FD6Ff8b0AC679450F3D91294607268fA · HintHelpers 0x4e4cBA3779d56386ED43631b4dCD6d8EacEcBCF6 · PriceFeed 0x86bCF0841622a5dAC14A313a15f96A95421b9366</text>
+    <text x="40" y="800">BTC 0x7b7C000000000000000000000000000000000000 · Tigris flash MUSD/mUSDC 0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e · Tigris swap MUSD/BTC 0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9 · Router 0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9</text>
+    <text x="40" y="812">PylonFlashEngine 0x94b6384F9202F27c3ab1b3b0c6f1A8b7218F45F6 · PylonPosition impl 0x504DcDD85FD82C2974F27b1f71B6cc116EbE18bE · PylonReserve 0xcc9dD7197237bbb645978D9A92872C7F82B6b881</text>
+  </g>
+</svg>
