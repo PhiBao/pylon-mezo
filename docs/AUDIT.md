@@ -1,6 +1,6 @@
 # Pylon — security audit
 
-**Target:** `PhiBao/pylon-mezo`, commits `0c73899` (audited snapshot) and the working tree that followed
+**Target:** `PhiBao/pylon-mezo`, commits `840bd88` (audited snapshot) and the working tree that followed
 **Network:** Mezo Testnet (chain ID `31611`) · **Auditor:** the building agent, as an adversarial reviewer
 **Scope:** all Solidity in `contracts/src`, `contracts/script`; the Rust engine (`server/src`), HTTP
 surface, x402 gateway, keeper, store; the terminal's execution and signing paths.
