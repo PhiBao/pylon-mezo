@@ -603,8 +603,6 @@ contracts/          Solidity + Foundry (engine, reserve, position, tests, deploy
 server/             Rust engine service (radar, solver, keeper, x402, proof ledger, CLI)
 web/                Next.js terminal (static export, wagmi/viem, RPC fallback)
 docs/diagrams/      Three architecture diagrams (SVG) + regeneration notes
-AGENTS.md           Engineering and quality standards used for this build
-FOUNDER.md          Product philosophy used for this build
 ```
 
 ## 12. License
