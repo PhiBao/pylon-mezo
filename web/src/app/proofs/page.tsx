@@ -5,7 +5,7 @@ import { ProofLedger } from '@/components/panels/ProofLedger'
 import { AddressChip } from '@/components/ui/AddressChip'
 import { SpecRow } from '@/components/ui/Panel'
 import { useHydrated } from '@/hooks'
-import { DEPLOYED, EXPLORER_URL } from '@/lib/chain'
+import { DEPLOYED, EXPLORER_URL, MAINNET_DEPLOYED, MAINNET_EXPLORER_URL } from '@/lib/chain'
 import { useRuntimeConfig } from '@/state/queries'
 import type { Address } from 'viem'
 
@@ -31,6 +31,37 @@ export default function ProofsPage() {
     { label: 'Tigris MUSD/mUSDC', address: runtime?.flashPool ?? DEPLOYED.flashPool, role: 'Flash venue used for every operation' },
     { label: 'Tigris MUSD/BTC', address: runtime?.swapPool ?? DEPLOYED.swapPool, role: 'Swap venue: MUSD → BTC on a loop, BTC → MUSD on an unwind' },
     { label: 'Tigris Router', address: runtime?.router ?? DEPLOYED.router, role: 'Route discovery and swap entry point' },
+  ]
+
+  // The mainnet deployment is a separate instance of the same audited generation, funded with real
+  // MUSD. The terminal reads testnet live, so these are shown as a manifest to check against the
+  // mainnet explorer.
+  const mainnetManifest: Array<{ label: string; address: string; role: string }> = [
+    {
+      label: 'PylonFlashEngine',
+      address: MAINNET_DEPLOYED.engine,
+      role: 'The audited generation on chain 31612. A second generation replaced it after the pool was migrated, capital intact.',
+    },
+    {
+      label: 'PylonReserve',
+      address: MAINNET_DEPLOYED.reserve,
+      role: 'Shield pool on mainnet: real MUSD deposited, a second depositor priced exactly right, a withdrawal executed.',
+    },
+    {
+      label: 'PylonPosition (impl)',
+      address: MAINNET_DEPLOYED.positionImplementation,
+      role: 'EIP-1167 clone target for mainnet positions and their shield policies.',
+    },
+    {
+      label: 'BorrowerOperationsSignatures',
+      address: MAINNET_DEPLOYED.borrowerOpsSignatures,
+      role: 'Mezo mainnet core contract that verifies the EIP-712 trove authorisations.',
+    },
+    { label: 'TroveManager', address: MAINNET_DEPLOYED.troveManager, role: 'Mezo mainnet CDP accounting, ICR and TCR.' },
+    { label: 'SortedTroves', address: MAINNET_DEPLOYED.sortedTroves, role: 'The mainnet redemption queue: one ordered list from 110% MCR to the head.' },
+    { label: 'MUSD', address: MAINNET_DEPLOYED.musd, role: 'Mainnet settlement asset: flashed, repaid, lent and used to settle x402 calls.' },
+    { label: 'Tigris MUSD/mUSDT', address: MAINNET_DEPLOYED.flashPool, role: 'Mainnet flash venue: 7.70M MUSD of depth at 2 bps.' },
+    { label: 'Tigris MUSD/BTC', address: MAINNET_DEPLOYED.swapPool, role: 'Mainnet swap venue: 102.98M MUSD against 1.2375 BTC at 30 bps.' },
   ]
 
   return (
@@ -92,6 +123,28 @@ export default function ProofsPage() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="border-t border-rule px-4 py-4">
+            <span className="etched">Deployment manifest · chain 31612 (mainnet)</span>
+            <ul className="flex flex-col gap-3 pt-3">
+              {mainnetManifest.map((entry) => (
+                <li key={entry.label} className="flex flex-col gap-1.5">
+                  <AddressChip
+                    address={entry.address}
+                    label={entry.label}
+                    size={5}
+                    explorerBase={MAINNET_EXPLORER_URL}
+                  />
+                  <span className="text-[12px] leading-[1.5] text-ink-3">{entry.role}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="pt-3 text-[12px] leading-[1.5] text-ink-3">
+              The same audited generation, deployed on Mezo mainnet and funded with real MUSD: a second
+              depositor priced exactly right, a machine payment settled in MUSD, and the pool migrated to a
+              fresh generation with the capital intact. Full record in the repository.
+            </p>
           </section>
         </div>
       </div>

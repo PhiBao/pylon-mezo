@@ -24,9 +24,35 @@ export const mezoTestnet = defineChain({
   testnet: true,
 })
 
-export const explorerTx = (hash: string): string => `${EXPLORER_URL}/tx/${hash}`
-export const explorerAddress = (address: string): string => `${EXPLORER_URL}/address/${address}`
-export const explorerBlock = (block: number): string => `${EXPLORER_URL}/block/${block}`
+export const explorerTx = (hash: string, base: string = EXPLORER_URL): string => `${base}/tx/${hash}`
+export const explorerAddress = (address: string, base: string = EXPLORER_URL): string =>
+  `${base}/address/${address}`
+export const explorerBlock = (block: number, base: string = EXPLORER_URL): string =>
+  `${base}/block/${block}`
+
+/**
+ * The audited generation on Mezo mainnet (chain 31612), deployed 21 Oct 2026. The terminal reads
+ * testnet live; these addresses are shown as a manifest so every mainnet claim can be checked
+ * independently on the mainnet explorer.
+ */
+export const MAINNET_EXPLORER_URL = 'https://explorer.mezo.org'
+export const MAINNET_DEPLOYED = {
+  chainId: 31612,
+  engine: getAddress('0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D'),
+  reserve: getAddress('0x81175AaAC5Fa0873e64480502566Fe993bB88e62'),
+  positionImplementation: getAddress('0x645174D655814839a85Bd80D2F54b35A7160465E'),
+  musd: getAddress('0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186'),
+  btc: getAddress('0x7b7C000000000000000000000000000000000000'),
+  flashPool: getAddress('0x10906a9E9215939561597b4C8e4b98F93c02031A'),
+  swapPool: getAddress('0x52e604c44417233b6CcEDDDc0d640A405Caacefb'),
+  borrowerOps: getAddress('0x44b1bac67dDA612a41a58AAf779143B181dEe031'),
+  borrowerOpsSignatures: getAddress('0xB57ab578BF20b3e318f3EFAA587C51DBccE5df7a'),
+  troveManager: getAddress('0x94AfB503dBca74aC3E4929BACEeDfCe19B93c193'),
+  sortedTroves: getAddress('0x8C5DB4C62BF29c1C4564390d10c20a47E0b2749f'),
+  priceFeed: getAddress('0xc5aC5A8892230E0A3e1c473881A2de7353fFcA88'),
+  router: getAddress('0x16A76d3cd3C1e3CE843C6680d6B37E9116b5C706'),
+  poolFactory: getAddress('0x83FE469C636C4081b87bA5b3Ae9991c6Ed104248'),
+} as const
 
 /**
  * Deployed Pylon + Mezo core addresses for chain 31611 — a snapshot of

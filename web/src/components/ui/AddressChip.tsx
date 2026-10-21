@@ -37,14 +37,18 @@ export function AddressChip({
   kind = 'address',
   label,
   size = 4,
+  explorerBase,
 }: {
   address: string
   kind?: 'address' | 'tx'
   label?: string
   size?: number
+  /** Explorer to link to — the mainnet manifest points at a different chain. */
+  explorerBase?: string
 }) {
   const { state, copy } = useCopy()
-  const href = kind === 'tx' ? explorerTx(address) : explorerAddress(address)
+  const href =
+    kind === 'tx' ? explorerTx(address, explorerBase) : explorerAddress(address, explorerBase)
   const text = kind === 'tx' ? shortHash(address) : shortAddress(address, size)
 
   return (

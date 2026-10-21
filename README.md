@@ -292,6 +292,15 @@ shows are by construction the numbers the contracts enforce.
 * [Foundry](https://book.getfoundry.sh/) (`forge`, `cast`)
 * A Mezo Testnet account with testnet BTC for gas (faucet: <https://faucet.test.mezo.org>)
 
+Clone with the dependencies (`forge-std` and `openzeppelin-contracts` are pinned submodules):
+
+```bash
+git clone --recurse-submodules https://github.com/PhiBao/pylon-mezo.git
+cd pylon-mezo/contracts && forge test     # 43 tests
+cd ../server && cargo test                # 9 tests
+cd ../web && pnpm install && pnpm typecheck
+```
+
 ### Contracts
 
 ```bash
