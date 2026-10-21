@@ -49,6 +49,10 @@ mainnet deployment is not just a testnet replica.
 Mainnet gas price at the time of writing: **1,462,500 wei (0.0014625 gwei)**, base fee 1.3M wei.
 With BTC at 82,150 MUSD:
 
+**Executed on 21 Oct 2026:** package A (deployment) and package B (real MUSD through the reserve,
+plus the withdrawal that exercises the escape route) are done on mainnet. Package C — a real trove for
+the atomic paths — is not, and is the remaining decision.
+
 | What | Cost | Evidence it produces |
 | --- | --- | --- |
 | **A. Deployment** — the three audited contracts deployed and wired | **≈0.8 MUSD of gas** (reserve alone ≈0.24) | the audited bytecode is live and wired on Mezo mainnet; verifiable by anyone in seconds |
