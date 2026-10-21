@@ -50,8 +50,10 @@ Mainnet gas price at the time of writing: **1,462,500 wei (0.0014625 gwei)**, ba
 With BTC at 82,150 MUSD:
 
 **Executed on 21 Oct 2026:** package A (deployment) and package B (real MUSD through the reserve,
-plus the withdrawal that exercises the escape route) are done on mainnet. Package C — a real trove for
-the atomic paths — is not, and is the remaining decision.
+plus the withdrawal that exercises the escape route) are done on mainnet — and the pool was then
+*migrated to a second generation* with the capital intact, so the upgrade path is proven with real
+value rather than only in tests. Package C — a real trove for the atomic paths — is not, and is out of
+reach at this budget: Mezo's 2,000 MUSD debt floor needs 0.0268–0.0365 BTC, roughly $2,200–3,000.
 
 | What | Cost | Evidence it produces |
 | --- | --- | --- |

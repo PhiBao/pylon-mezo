@@ -159,9 +159,27 @@ means switching those together with the deployment file.
 
 ## 6. Ownership and keys — still to do before third-party money
 
-* The deployer key owns the engine and the reserve. It is also the key in `contracts/.env` and
-  `server/.env` — the same key is used on testnet. **Move mainnet ownership to a multisig** and use a
-  separate hot key for the keeper.
+* The deployer key owns the engine and the reserve. It is a **different key from the testnet one**
+  (the mainnet key lives in the repository root `.env`, the testnet key in `contracts/.env`), which is
+  the right shape — but it has been used in plaintext during setup, so **rotate the owner to a fresh
+  key** (ideally a hardware wallet) before any third-party money:
+
+  ```bash
+  cast send $ENGINE "transferOwnership(address)" $NEW_OWNER --private-key $PRIVATE_KEY --rpc-url $MAINNET_RPC --legacy
+  cast send $RESERVE "transferOwnership(address)" $NEW_OWNER --private-key $PRIVATE_KEY --rpc-url $MAINNET_RPC --legacy
+  ```
+
+  After the rotation, the old key has no power at all.
+* **A Gnosis Safe is not available on Mezo today.** The canonical Safe singleton and proxy factory
+  have no code on chain 31612, and Mezo's own Safe-deployments fork has no 31612 entry, so the Safe
+  app cannot create one here without first deploying the whole Safe stack. If an on-chain 2-of-2 is
+  wanted, the realistic options are (a) a small two-of-two owner module that the engine and reserve
+  can be handed to — a contained change, but it needs its own review before it holds real value — or
+  (b) deploying the Safe contracts to Mezo, which is a project in itself.
+* **Most of the escape routes do not need the owner at all.** Depositors leave through
+  `reserve.withdraw` ✓, a position's claim is settled by its own owner through `repayReserve` ✓, and a
+  position's collateral is released once the claim is gone ✓. The owner is needed only for the
+  write-off path (a borrower who never repays) and for rescuing stray tokens.
 * The keeper never signs anything a user would sign; it can only call `defend()` on a position inside
   its own configured band. It still should not be the deployer key.
 * Set `AUTO_DEFEND=1` only after the keeper has its own key and a funded address.

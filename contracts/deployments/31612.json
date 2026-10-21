@@ -9,35 +9,11 @@
   "musd": "0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186",
   "poolFactory": "0x83FE469C636C4081b87bA5b3Ae9991c6Ed104248",
   "priceFeed": "0xc5aC5A8892230E0A3e1c473881A2de7353fFcA88",
-  "pylonFlashEngine": "0x770BDCbc6Ef06f99A1C239A77b6792eF1006CF97",
-  "pylonPositionImplementation": "0x7d5C9F16EfE4343b65C8dbbD8733131f240DFDeD",
-  "pylonReserve": "0x62b33b59500f9569b3996e51ee9E486eaaA9F788",
+  "pylonFlashEngine": "0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D",
+  "pylonPositionImplementation": "0x645174D655814839a85Bd80D2F54b35A7160465E",
+  "pylonReserve": "0x81175AaAC5Fa0873e64480502566Fe993bB88e62",
   "router": "0x16A76d3cd3C1e3CE843C6680d6B37E9116b5C706",
   "sortedTroves": "0x8C5DB4C62BF29c1C4564390d10c20a47E0b2749f",
   "swapPool": "0x52e604c44417233b6CcEDDDc0d640A405Caacefb",
-  "troveManager": "0x94AfB503dBca74aC3E4929BACEeDfCe19B93c193",
-  "transactions": {
-    "deployPositionTemplate": "0x648ebc133b1e9fece77e919a8537f55910679eaf6cd7638d27c40ceb06422d7e",
-    "deployEngine": "0xdfef33376bbe5624f975cce7568373754d840c3a41ffb158adf718c64d688202",
-    "deployReserve": "0xf5b76e7f3da32693b5e6571b2371611f5676a8a929cd58e0ec9e259d5f90d832",
-    "all": [
-      "0x648ebc133b1e9fece77e919a8537f55910679eaf6cd7638d27c40ceb06422d7e",
-      "0xdfef33376bbe5624f975cce7568373754d840c3a41ffb158adf718c64d688202",
-      "0xf5b76e7f3da32693b5e6571b2371611f5676a8a929cd58e0ec9e259d5f90d832",
-      "0xd7a2196aa53f9266707990199fb4112e6f6050c6738d9a6f033636337c281fbc",
-      "0xfe2553055e19926747ea6ef62395bf165444b9c103549cf4155b3ed7e9f6977c",
-      "0x83a15fac0f57ad048464744760a1282685a1a8cc9444f8b2a6f0b18c2d45dd27"
-    ]
-  },
-  "mainnetOps": {
-    "deployedAt": "2026-10-21",
-    "deployedBy": "0xDbFe5c4d0256D2459bB216caB905999Ca41bE349",
-    "firstDepositMusd": "8",
-    "secondDepositMusd": "2.190243037756471532",
-    "secondDepositSharesWorthMusd": "2.190243037756471532",
-    "withdrawalMusd": "1",
-    "note": "The second deposit is the live proof of the audit's highest-severity economic fix: its shares are worth exactly what was paid, where the audited code priced them at roughly half. The withdrawal is the escape route, exercised with real mainnet MUSD.",
-    "gasSpentBtc": "0.0000125",
-    "deployerBtcRemaining": "0.000111367348146087"
-  }
+  "troveManager": "0x94AfB503dBca74aC3E4929BACEeDfCe19B93c193"
 }

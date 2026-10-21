@@ -563,7 +563,10 @@ async fn verify_onchain_payment(
         .parse()
         .map_err(|_| anyhow::anyhow!("invalid tx hash"))?;
     let Some(receipt) = state.mezo.rpc.receipt(hash).await? else {
-        return Ok(None);
+        // A node that has not indexed the block yet returns null for a mined transaction. Saying
+        // "no matching transfer" would send the client looking in the wrong place; the payment may
+        // well be valid a few seconds later.
+        return Err(anyhow::anyhow!("payment not confirmed by the node yet — retry shortly"));
     };
     if !receipt.succeeded() {
         return Ok(None);

@@ -434,23 +434,29 @@ curl -i http://localhost:8787/api/v1/x402/trove-report/0xe0773065977747d34e94397
 | Shielded position (this generation) | [`0x02f472dd2c08a4dab586ab11bafb294c27f5182e`](https://explorer.test.mezo.org/address/0x02f472dd2c08a4dab586ab11bafb294c27f5182e) |
 | Reserve LPs | operator 1,005.185 MUSD (first depositor) and the demo wallet 100 MUSD (second depositor) |
 
-**Live on Mezo mainnet (chain 31612).** The same audited generation, deployed 21 Oct 2026.
+**Live on Mezo mainnet (chain 31612).** The audited generation, deployed 21 Oct 2026 — and then
+*migrated to a fresh generation with the capital intact*, which is the escape route exercised with real
+value rather than asserted in a test.
 
 | Contract | Address |
 | --- | --- |
-| `PylonFlashEngine` | [`0x770BDCbc6Ef06f99A1C239A77b6792eF1006CF97`](https://explorer.mezo.org/address/0x770BDCbc6Ef06f99A1C239A77b6792eF1006CF97) |
-| `PylonReserve` | [`0x62b33b59500f9569b3996e51ee9E486eaaA9F788`](https://explorer.mezo.org/address/0x62b33b59500f9569b3996e51ee9E486eaaA9F788) |
-| `PylonPosition` (template) | [`0x7d5C9F16EfE4343b65C8dbbD8733131f240DFDeD`](https://explorer.mezo.org/address/0x7d5C9F16EfE4343b65C8dbbD8733131f240DFDeD) |
+| `PylonFlashEngine` | [`0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D`](https://explorer.mezo.org/address/0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D) |
+| `PylonReserve` | [`0x81175AaAC5Fa0873e64480502566Fe993bB88e62`](https://explorer.mezo.org/address/0x81175AaAC5Fa0873e64480502566Fe993bB88e62) |
+| `PylonPosition` (template) | [`0x645174D655814839a85Bd80D2F54b35A7160465E`](https://explorer.mezo.org/address/0x645174D655814839a85Bd80D2F54b35A7160465E) |
 | Flash venue (MUSD/mUSDT, 7.70M depth, 2 bps) | `0x10906a9E9215939561597b4C8e4b98F93c02031A` |
 | Swap venue (MUSD/BTC, 102.98M depth, 30 bps) | `0x52e604c44417233b6CcEDDDc0d640A405Caacefb` |
 | MUSD | `0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186` |
+| Previous generation (drained by the migration) | engine `0x770BDCbc…`, reserve `0x62b33b59…` |
 
-Real mainnet MUSD has moved through the audited reserve: **8 MUSD** deposited (first depositor, 1:1),
-then **2.190243037756471532 MUSD** as a *second* deposit whose shares are worth exactly what was paid —
-the live proof of the audit's highest-severity economic fix, which would have priced that deposit at
-roughly half — then **1 MUSD** withdrawn straight back out, exercising the escape route with real
-value. The whole deployment cost 0.0000125 BTC. A mainnet service instance serves the same API
-(health, radar, reserve, proofs, `x402`) against chain 31612.
+What happened, in order, with real mainnet value: the first generation took 8 MUSD, then a **second**
+deposit of 2.190243037756471532 MUSD whose shares came back worth exactly what was paid — the live
+proof of the audit's highest-severity economic fix, which would have priced that deposit at roughly
+half — and 1 MUSD was withdrawn straight back out. Then the **whole pool was withdrawn, a second
+generation was deployed, and the capital was redeposited into it**: 10.19 MUSD moved from one
+generation to the next with nothing stranded, which is the escape route the audit required. A mainnet
+service instance serves the same API (health, radar, reserve, proofs, `x402`) against chain 31612, and
+a real 0.001 MUSD mainnet payment settled a paid report on the whale trove
+`0x593c427d…` — with the same proof then refused as a replay.
 
 **Previous generation on testnet (settled, kept for lineage).** Engine `0x94b6384F…`, reserve `0xcc9dD719…`,
 template `0x504DcDD8…`, shielded position `0xe0773065…`. Its 543.943 MUSD claim was settled, its LP
