@@ -130,7 +130,34 @@ rescue can only ever reach funds that were sent by mistake.
 `position.claimCollateralSurplus()` releases the collateral Mezo owes the trove, to the owner once the
 reserve's claim is settled.
 
-## 5. Ownership and keys — still to do before third-party money
+## 5. Pointing the service and the terminal at mainnet
+
+The judge-facing terminal stays on testnet. A mainnet instance is a second configuration, not a
+change to the existing one:
+
+```bash
+# service
+cd server
+CHAIN_ID=31612
+RPC_URL=https://jsonrpc-mezo.boar.network
+DEPLOYMENT=../contracts/deployments/31612.json
+X402_PAY_TO=<your mainnet address>
+POSITIONS=<position addresses on mainnet, if any>
+AUTO_DEFEND=0        # keep the keeper off until it has its own key
+# .env is read at start; a separate .env.mainnet keeps the two apart
+
+# terminal (static export; the API base and the chain id are build-time)
+cd ../web
+NEXT_PUBLIC_MEZO_RPC=https://jsonrpc-mezo.boar.network
+NEXT_PUBLIC_BASE_PATH=/pylon-mezo
+pnpm build
+```
+
+The terminal's chain id, explorer links, address set and the `x402` network string are all
+build-time constants in `web/src/lib/chain.ts` and the panels that display them; switching networks
+means switching those together with the deployment file.
+
+## 6. Ownership and keys — still to do before third-party money
 
 * The deployer key owns the engine and the reserve. It is also the key in `contracts/.env` and
   `server/.env` — the same key is used on testnet. **Move mainnet ownership to a multisig** and use a
