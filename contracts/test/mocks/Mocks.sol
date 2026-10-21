@@ -392,6 +392,11 @@ contract MockBorrowerOps {
         _adjust(msg.sender, 0, amount, false);
     }
 
+    /// @dev Mezo releases collateral owed to a trove owner here; the mock pays it out directly.
+    function claimCollateral() external {
+        btc.mint(msg.sender, 1e18);
+    }
+
     function closeTrove() external {
         uint256 debt = troveManager.getTroveDebt(msg.sender);
         uint256 coll = troveManager.getTroveColl(msg.sender);

@@ -58,7 +58,10 @@ contract Deploy is Script {
             c = Config({
                 musd: 0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186,
                 btc: 0x7b7C000000000000000000000000000000000000,
-                flashPool: vm.envOr("FLASH_POOL", address(0)),
+                // MUSD/mUSDT (stable, 7.70M MUSD depth, 2 bps) — verified live against the
+                // Tigris factory; MUSD/mUSDC 0xEd812AEc0Fecc8fD882Ac3eccC43f3aA80A6c356 is the
+                // alternative (6.86M MUSD).
+                flashPool: 0x10906a9E9215939561597b4C8e4b98F93c02031A,
                 swapPool: 0x52e604c44417233b6CcEDDDc0d640A405Caacefb, // MUSD/BTC (token0 = BTC)
                 router: 0x16A76d3cd3C1e3CE843C6680d6B37E9116b5C706,
                 poolFactory: 0x83FE469C636C4081b87bA5b3Ae9991c6Ed104248,

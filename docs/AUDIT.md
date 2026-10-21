@@ -153,7 +153,7 @@ hide again. `test_position_flashLegsExecute` fails without either change.
 | L1 | Collateral the engine paid to a position was unreachable: every position outflow moved only a fresh delta | `withdrawCollateral` now transfers the whole balance; `sweep` for stray tokens; the position-mode surplus is recoverable |
 | L2 | A liquidated position could not claim Mezo's collateral surplus, and the reserve kept the dead loan on its books at face value | `claimCollateralSurplus()`; `writeOffLoan` for honest bad-debt accounting |
 | L3 | `writeOffLoan` cleared the reserve's ledger but not the position's mirror, permanently locking that collateral | the reserve clears the position's mirror; `recordRepayment` tolerates an already-written-off loan |
-| L4 | ERC-20 transfer results were ignored throughout | `_safeTransfer` in `PylonPosition` |
+| L4 | ERC-20 transfer results were ignored throughout | `_safeTransfer` in `PylonPosition`, and (post-audit) in `PylonFlashEngine` as well — a `false` return now reverts instead of stranding the payout |
 | L5 | `repay(debt)` reverted with an arithmetic panic (zero-debt hint lookup) | explicit `FullRepaymentNotSupported` |
 | L6 | `_runUnwind*` trusted the signed ceiling rather than the balance received, so a short delivery would be funded from the engine | `_verifyCollateralReceived` |
 | L7 | The swap route named the router's default factory while pricing used `swapPool` | route uses `swapPool.factory()`; the constructor refuses a mismatch |
@@ -208,6 +208,12 @@ The rule applied: **redeploy only if nothing is stranded.** Nothing was.
   visibility limit rather than at a conclusion.
 * **This was one pass.** A second pass would hunt new ground; the list above is what one pass reached,
   not a claim of exhaustion.
-* **Test suites at hand-off:** 39 Foundry tests (was 19 before the audit), 9 Rust tests (was 6), plus
+* **Post-audit changes (reviewed, tested, and reported here):** the engine's transfers are now
+  checked (L4), and the engine gained one owner-only function, `rescueToken`, which moves tokens that
+  are not part of its accounting and is refused while a flash is in flight. It exists because the
+  engine had no way to return funds sent to it by mistake, which is not acceptable with real value on
+  chain. Three new tests prove the escape routes: capital migrating to a new generation, a stuck
+  position released by a write-off, and the rescue itself. Suite: 43 Foundry tests (was 39), 9 Rust
+  tests (was 6), plus
   the terminal's typecheck and static build. Every fix in §2–§4 has a named regression test except the
   service items marked "code" (which are enforced by construction rather than by a unit test).

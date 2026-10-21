@@ -1007,4 +1007,152 @@ contract PylonTest is Test {
         assertEq(reserve.loans(position), 0, "reserve wrote the loan off");
         assertEq(PylonPosition(payable(position)).reserveDebt(), 0, "position mirror was cleared");
     }
+
+    // ---------------------------------------------------------------------
+    // Escape routes: the funds must always be reachable
+    // ---------------------------------------------------------------------
+
+    /// Funds sent to the engine by mistake must be recoverable, and only by the owner, and never
+    /// while a flash is in flight.
+    function test_engine_rescueMovesStrayFundsOnly() public {
+        vm.startPrank(alice);
+        musd.mint(alice, 5e18);
+        musd.transfer(address(engine), 5e18);
+        vm.stopPrank();
+        assertEq(musd.balanceOf(address(engine)), 5e18, "stray MUSD arrived");
+
+        vm.prank(alice);
+        vm.expectRevert();
+        engine.rescueToken(address(musd), alice, 5e18);
+
+        engine.rescueToken(address(musd), alice, 5e18);
+        assertEq(musd.balanceOf(address(engine)), 0, "engine emptied");
+        assertEq(musd.balanceOf(alice), 5e18, "funds are with the owner again");
+    }
+
+    /// The whole pool must be able to move to a new generation: settle the live claim, withdraw the
+    /// capital, deploy the successor, and deposit it there. Nothing may be stranded on the way.
+    function test_capitalCanMoveToANewGeneration() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 1e18}(25_000e18);
+
+        // A pool large enough that the defence can move the ratio: with 1,000 MUSD the 20%
+        // concentration cap caps a defence at 200 MUSD, which is too small to clear the 2%
+        // materiality floor — the reserve correctly refuses a defence it cannot make useful.
+        vm.startPrank(lp);
+        musd.mint(lp, 10_000e18);
+        musd.approve(address(reserve), 10_000e18);
+        reserve.deposit(10_000e18, lp);
+        vm.stopPrank();
+
+        // a live defence loan, so the capital is partly lent out
+        vm.prank(bob);
+        PylonPosition(payable(position)).setShield(true, 1.75e18, 2e18, 10_000e18);
+        priceFeed.setPrice(40_000e18);
+        uint256 repaid = PylonPosition(payable(position)).defend();
+        assertGt(repaid, 0, "a loan is outstanding");
+        assertEq(reserve.outstanding(), repaid, "the reserve is owed");
+
+        // step 1: the position settles the claim
+        vm.startPrank(bob);
+        musd.approve(address(position), repaid);
+        musd.transfer(position, repaid);
+        PylonPosition(payable(position)).repayReserve(repaid);
+        vm.stopPrank();
+        assertEq(reserve.outstanding(), 0, "no loan is left to strand the migration");
+
+        // step 2: the depositor withdraws the capital from the old generation
+        uint256 shares = reserve.shares(lp);
+        vm.prank(lp);
+        uint256 assets = reserve.withdraw(shares, lp, lp);
+        // at most the virtual-asset rounding dust is left behind
+        assertLe(reserve.totalAssets(), 2, "old reserve is empty apart from dust");
+        assertEq(reserve.totalShares(), 0, "old reserve has no shares left");
+
+        // step 3: deploy the successor generation and wire it
+        PylonPosition implB = new PylonPosition();
+        PylonReserve reserveB = new PylonReserve(address(this), OZIERC20(address(musd)));
+        PylonFlashEngine engineB = new PylonFlashEngine(
+            address(this),
+            IMUSD(address(musd)),
+            IERC20(address(btc)),
+            IPool(address(flashPool)),
+            IPool(address(swapPool)),
+            IRouter(address(router)),
+            IPoolFactory(address(poolFactory)),
+            IBorrowerOperations(address(borrowerOps)),
+            IBorrowerOperationsSignatures(address(sigOps)),
+            ITroveManager(address(troveManager)),
+            ISortedTroves(address(sortedTroves)),
+            IHintHelpers(address(hintHelpers)),
+            IPriceFeed(address(priceFeed)),
+            address(this)
+        );
+        engineB.setPositionImplementation(address(implB));
+        reserveB.setEngine(address(engineB));
+        engineB.setReserve(address(reserveB));
+
+        // step 4: the capital goes into the new generation
+        vm.startPrank(lp);
+        musd.approve(address(reserveB), assets);
+        uint256 sharesB = reserveB.deposit(assets, lp);
+        vm.stopPrank();
+
+        assertEq(reserveB.totalAssets(), assets, "capital is whole in the new reserve");
+        assertEq(reserveB.convertToAssets(sharesB), assets, "and priced correctly");
+        assertEq(engineB.reserve(), address(reserveB), "the new engine points at the new reserve");
+        assertEq(reserveB.engine(), address(engineB), "and back");
+
+        // the old position still works after the migration: its claim is settled, so the owner can
+        // release the collateral exactly as before
+        vm.prank(bob);
+        PylonPosition(payable(position)).withdrawCollateral(0.01e18, bob);
+        assertGt(btc.balanceOf(bob), 0, "the old position is not stranded");
+    }
+
+    /// If a borrower never repays, governance writes the loan off and the position is released —
+    /// the collateral is not held hostage by a claim nobody can settle.
+    function test_stuckPositionIsReleasedByWriteOff() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 1e18}(25_000e18);
+
+        vm.startPrank(lp);
+        musd.mint(lp, 100_000e18);
+        musd.approve(address(reserve), 100_000e18);
+        reserve.deposit(100_000e18, lp);
+        vm.stopPrank();
+
+        vm.prank(bob);
+        PylonPosition(payable(position)).setShield(true, 1.75e18, 2e18, 10_000e18);
+        priceFeed.setPrice(40_000e18);
+        uint256 repaid = PylonPosition(payable(position)).defend();
+        assertGt(repaid, 0, "a loan is outstanding");
+
+        // the borrower disappears; governance books the loss
+        reserve.writeOffLoan(position, repaid);
+        assertEq(reserve.loans(position), 0, "the reserve wrote the loan off");
+        assertEq(PylonPosition(payable(position)).reserveDebt(), 0, "the position's claim is cleared");
+
+        // the owner can now release the collateral
+        vm.prank(bob);
+        PylonPosition(payable(position)).withdrawCollateral(0.01e18, bob);
+        assertGt(btc.balanceOf(bob), 0, "collateral released after the write-off");
+    }
+
+    /// A liquidated position can still claim the collateral Mezo owes it.
+    function test_positionCanClaimItsCollateralSurplus() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 1e18}(25_000e18);
+
+        uint256 before = btc.balanceOf(bob);
+        vm.prank(address(0xDEAD));
+        PylonPosition(payable(position)).claimCollateralSurplus();
+        assertGt(btc.balanceOf(bob), before, "the surplus reached the owner");
+    }
 }

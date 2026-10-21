@@ -175,6 +175,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     event FlashFeeUpdated(uint16 feeBps);
     event TreasuryUpdated(address indexed treasury);
     event ExitSlippageUpdated(uint256 maxExitSlippageBps);
+    event TokenRescued(address indexed token, address indexed to, uint256 amount);
 
     // ---------------------------------------------------------------------
     // Errors
@@ -204,6 +205,10 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     error PayloadMismatch();
     /// @notice The trove delivered less collateral than the caller's signed ceiling.
     error ShortCollateral(uint256 expected, uint256 received);
+    /// @notice A rescue was attempted while a flash was in flight.
+    error FlashInProgress();
+    /// @notice A transfer reported failure.
+    error TransferFailed();
     /// @notice The collateral sale realised too little MUSD per BTC against the oracle price.
     error ExcessiveSlippage(uint256 realised, uint256 floor);
     /// @notice The flash venue returned without servicing the callback, so nothing was executed.
@@ -576,7 +581,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         _payFee(_pylonFee(p.amountIn));
 
         uint256 surplus = btcOut - p.collAdd;
-        if (surplus > 0) btc.transfer(p.outputTo, surplus);
+        if (surplus > 0) _safeTransfer(btc, p.outputTo, surplus);
         _sweepMusd(p.outputTo);
         _requirePostICR(p.owner, p.minPostICR);
         _resultPrimary = btcOut;
@@ -611,9 +616,9 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         _payFee(_pylonFee(p.amountIn));
 
         uint256 musdSurplus = got - need;
-        if (musdSurplus > 0) musd.transfer(p.outputTo, musdSurplus);
+        if (musdSurplus > 0) _safeTransfer(musd, p.outputTo, musdSurplus);
         uint256 btcSurplus = p.collOut - btcIn;
-        if (btcSurplus > 0) btc.transfer(p.outputTo, btcSurplus);
+        if (btcSurplus > 0) _safeTransfer(btc, p.outputTo, btcSurplus);
         _sweepMusd(p.outputTo);
         _sweepBtc(p.outputTo);
         _requirePostICR(p.owner, p.minPostICR);
@@ -648,7 +653,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         _payFee(_pylonFee(p.amountIn));
 
         uint256 surplus = btcOut - p.collAdd;
-        if (surplus > 0) btc.transfer(p.outputTo, surplus);
+        if (surplus > 0) _safeTransfer(btc, p.outputTo, surplus);
         _sweepMusd(p.outputTo);
         _requirePostICR(p.owner, p.minPostICR);
         _resultPrimary = btcOut;
@@ -657,7 +662,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     }
 
     function _runUnwindPosition(HookPayload memory p) private {
-        musd.transfer(p.owner, p.amountIn);
+        _safeTransfer(musd, p.owner, p.amountIn);
         try IPylonPosition(p.owner).executeTroveAdjust(p.collOut, p.amountIn, false, p.upperHint, p.lowerHint) {
         } catch (bytes memory reason) {
             revert StageFailed(2, gasleft(), reason);
@@ -679,9 +684,9 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         _payFee(_pylonFee(p.amountIn));
 
         uint256 musdSurplus = got - need;
-        if (musdSurplus > 0) musd.transfer(p.outputTo, musdSurplus);
+        if (musdSurplus > 0) _safeTransfer(musd, p.outputTo, musdSurplus);
         uint256 btcSurplus = p.collOut - btcIn;
-        if (btcSurplus > 0) btc.transfer(p.outputTo, btcSurplus);
+        if (btcSurplus > 0) _safeTransfer(btc, p.outputTo, btcSurplus);
         _sweepMusd(p.outputTo);
         _sweepBtc(p.outputTo);
         _requirePostICR(p.owner, p.minPostICR);
@@ -691,7 +696,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     }
 
     function _runClosePosition(HookPayload memory p) private {
-        musd.transfer(p.owner, p.amountIn);
+        _safeTransfer(musd, p.owner, p.amountIn);
         IPylonPosition(p.owner).executeClose();
         _exitWithCollateral(p);
     }
@@ -715,9 +720,9 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         _payFee(_pylonFee(p.amountIn));
 
         uint256 musdSurplus = got - need;
-        if (musdSurplus > 0) musd.transfer(p.outputTo, musdSurplus);
+        if (musdSurplus > 0) _safeTransfer(musd, p.outputTo, musdSurplus);
         uint256 btcRemaining = coll - btcIn;
-        if (btcRemaining > 0) btc.transfer(p.outputTo, btcRemaining);
+        if (btcRemaining > 0) _safeTransfer(btc, p.outputTo, btcRemaining);
         _sweepMusd(p.outputTo);
         _sweepBtc(p.outputTo);
         _resultPrimary = btcRemaining;
@@ -728,6 +733,27 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     // ---------------------------------------------------------------------
     // Fee model
     // ---------------------------------------------------------------------
+
+    /// @notice Moves a token that is not part of the engine's accounting out of the engine.
+    /// @dev The engine holds no MUSD and no BTC between operations: every leg is delta-accounted
+    ///      against a snapshot and the residue is swept to the beneficiary, and the tests assert the
+    ///      engine is empty after a loop, an unwind and an exit. So this can only ever reach funds
+    ///      that were sent to the engine by mistake, and it is refused while a flash is in flight so
+    ///      it can never touch a live leg.
+    function rescueToken(address token, address to, uint256 amount) external onlyOwner {
+        if (_op != OP_NONE) revert FlashInProgress();
+        if (token == address(0) || to == address(0)) revert ZeroAddress();
+        _safeTransfer(IERC20(token), to, amount);
+        emit TokenRescued(token, to, amount);
+    }
+
+    /// @dev Transfers are checked. A token that returns `false` instead of reverting would otherwise
+    ///      leave value behind while the operation reported success.
+    function _safeTransfer(IERC20 token, address to, uint256 amount) private {
+        if (amount == 0) return;
+        (bool ok, bytes memory data) = address(token).call(abi.encodeCall(IERC20.transfer, (to, amount)));
+        if (!ok || (data.length != 0 && !abi.decode(data, (bool)))) revert TransferFailed();
+    }
 
     /// @notice Pylon's origination fee for a flashed notional.
     function feeReport(uint256 amount) public view returns (uint256) {
@@ -777,13 +803,13 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     }
 
     function _repayFlash(uint256 amount) private {
-        musd.transfer(address(flashPool), amount + _flashFee(amount));
+        _safeTransfer(musd, address(flashPool), amount + _flashFee(amount));
     }
 
     function _payFee(uint256 amount) private {
         if (amount == 0) return;
         address recipient = reserve == address(0) ? treasury : reserve;
-        musd.transfer(recipient, amount);
+        _safeTransfer(musd, recipient, amount);
         if (reserve != address(0)) {
             IPylonReserve(reserve).notifyFee(amount);
         }
@@ -793,14 +819,14 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     function _sweepMusd(address to) private {
         uint256 balance = musd.balanceOf(address(this));
         if (balance > _musdBefore) {
-            musd.transfer(to, balance - _musdBefore);
+            _safeTransfer(musd, to, balance - _musdBefore);
         }
     }
 
     function _sweepBtc(address to) private {
         uint256 balance = btc.balanceOf(address(this));
         if (balance > _btcBefore) {
-            btc.transfer(to, balance - _btcBefore);
+            _safeTransfer(btc, to, balance - _btcBefore);
         }
     }
 

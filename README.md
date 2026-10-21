@@ -449,7 +449,8 @@ with 102.98M MUSD for the swap. Gas on mainnet is 0.0014625 gwei, so deploying t
 costs **≈0.8 MUSD**; the only expensive step is Mezo's trove floor (2,000 MUSD of debt), which is what
 an on-mainnet Flash Loop would need. Details, numbers and the reversible cost ladder:
 **[`docs/MAINNET-READINESS.md`](docs/MAINNET-READINESS.md)** · re-run with
-`contracts/script/verify-mainnet.sh`.
+`contracts/script/verify-mainnet.sh`. The deployment, verification, funding and **escape routes** are
+written up as commands in **[`docs/MAINNET-RUNBOOK.md`](docs/MAINNET-RUNBOOK.md)**.
 
 ### Real vs simulated — stated plainly
 
