@@ -9,7 +9,6 @@ FOUNDER.md
 contracts/out/
 contracts/cache/
 contracts/broadcast/
-contracts/lib/
 server/target/
 server/data/
 web/node_modules/

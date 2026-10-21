@@ -17,7 +17,7 @@ fs_permissions = [{ access = "read-write", path = "./deployments/" }]
 
 [rpc_endpoints]
 mezo_testnet = "https://rpc.test.mezo.org"
-mezo_mainnet = "https://rpc.mezo.org"
+mezo_mainnet = "https://jsonrpc-mezo.boar.network"
 
 [fmt]
 line_length = 100
