@@ -1,5 +1,8 @@
 # Pylon — pitch deck content
 
+**Rendered deck:** [`deck/pylon-deck.pdf`](deck/pylon-deck.pdf) (10 slides, 1280×720) —
+source [`deck/pylon-deck.html`](deck/pylon-deck.html). This file is the copy and the reasoning behind each slide.
+
 > 10 slides. Each slide is deliberately one idea: a judge should be able to read the deck and the
 > terminal side by side and find the same claims.
 
