@@ -52,6 +52,8 @@ Mezo is a Liquity-style CDP system. Three properties combine into a trap:
    **lowest-ICR trove above 110% MCR**. A 135% borrower can lose BTC to a redemption and never see a
    liquidation warning. This queue is public on-chain and invisible in every interface.
 
+<img src="docs/diagrams/02-redemption-queue.png" alt="Troves ordered by collateral ratio, with redemptions consuming the lowest first and a reserve defence moving a defended trove out of reach" width="100%">
+
 ### The idea
 
 Mezo already contains the parts needed to fix all three, and no product had put them together:

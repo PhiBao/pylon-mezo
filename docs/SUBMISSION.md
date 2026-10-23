@@ -127,8 +127,8 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
 * Engine service (radar solver, keeper, x402): `cd server && cargo run --release -- serve` — the API the
   hosted terminal uses when it is reachable; `server/.env.mainnet.example` is the mainnet variant
 * Product deck: `docs/PITCH.md` · 2-minute pitch video: `docs/DEMO_SCRIPT.md` (script and transaction
-  index) · diagram set: `docs/diagrams/01-atomic-paths.svg`, `02-redemption-queue.svg`,
-  `03-system-map.svg`
+  index) · diagram set: `docs/diagrams/01-atomic-paths.png`, `02-redemption-queue.png`,
+  `03-system-map.png`
 * Mainnet readiness and the cost ladder: `docs/MAINNET-READINESS.md` · deploy and escape procedures:
   `docs/MAINNET-RUNBOOK.md`
 
