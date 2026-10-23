@@ -21,6 +21,12 @@ import { ACTIVE_CHAIN, RPC_URL } from '@/lib/chain'
  * It is deliberately a demo affordance, not a custody feature: the UI labels it DEMO KEY, and the
  * dialog says to use a throwaway key.
  */
+/**
+ * The demo signer is a recording affordance, not a product surface: the production header hides it
+ * unless the build opts in with NEXT_PUBLIC_DEMO_SIGNER=1.
+ */
+export const DEMO_SIGNER_ENABLED = process.env.NEXT_PUBLIC_DEMO_SIGNER === '1'
+
 interface DemoSignerSnapshot {
   address: Address | null
   error: string | null

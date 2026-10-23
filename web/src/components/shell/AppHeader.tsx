@@ -1,9 +1,11 @@
 'use client'
 
 import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { ConnectButton } from './ConnectButton'
 import { DemoSignerButton } from './DemoSignerButton'
+import { DEMO_SIGNER_ENABLED } from '@/state/demo-signer'
 import { Wordmark } from './Wordmark'
 import { ACTIVE_CHAIN, EXPLORER_URL, IS_MAINNET, NETWORK_LABEL } from '@/lib/chain'
 import { useRuntimeConfig } from '@/state/queries'
@@ -30,19 +32,99 @@ function SourcePill() {
   )
 }
 
-function NetworkBadge() {
-  // Each network is its own static bundle, so switching is a link, not a state change: /mainnet/
-  // carries the mainnet deployment and RPC, / carries testnet plus the hosted engine.
-  const other = IS_MAINNET ? '/' : '/mainnet/'
+function NetworkSwitch() {
+  const [open, setOpen] = useState(false)
+  const container = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const onClick = (event: MouseEvent) => {
+      if (container.current && !container.current.contains(event.target as Node)) setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('mousedown', onClick)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('mousedown', onClick)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  // Each network is its own prerendered bundle (/ and /mainnet/), so switching is a navigation:
+  // the contract set, explorer and RPC all follow the selection. The chip opens a menu instead of
+  // hiding the second network behind a link people do not notice.
+  const networks = [
+    {
+      label: 'Mezo Testnet',
+      id: 31611,
+      href: '/',
+      detail: 'Engine API · full product',
+      active: !IS_MAINNET,
+    },
+    {
+      label: 'Mezo mainnet',
+      id: 31612,
+      href: '/mainnet/',
+      detail: 'RPC reads · live contracts',
+      active: IS_MAINNET,
+    },
+  ]
+
   return (
-    <span className="chip" title={`${NETWORK_LABEL} — chain ${ACTIVE_CHAIN.id}`}>
-      <span className={`inline-block h-[5px] w-[5px] ${IS_MAINNET ? 'bg-emerald' : 'bg-amber'}`} />
-      <span className="hidden sm:inline">{NETWORK_LABEL}</span>
-      <span className="text-ink-3">{ACTIVE_CHAIN.id}</span>
-      <a className="link ml-1 text-label" href={other} title={`Open the ${IS_MAINNET ? 'testnet' : 'mainnet'} build`}>
-        {IS_MAINNET ? 'testnet' : 'mainnet'} ↗
-      </a>
-    </span>
+    <div className="relative" ref={container}>
+      <button
+        type="button"
+        className="chip chip-link"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Switch network"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <span className={`inline-block h-[5px] w-[5px] ${IS_MAINNET ? 'bg-emerald' : 'bg-amber'}`} />
+        <span className="hidden sm:inline">{NETWORK_LABEL}</span>
+        <span className="text-ink-3">{ACTIVE_CHAIN.id}</span>
+        <svg viewBox="0 0 8 6" className="h-[5px] w-[8px] text-ink-3" aria-hidden="true">
+          <path d="M0 0.5h8L4 5.5Z" fill="currentColor" />
+        </svg>
+      </button>
+
+      {open ? (
+        <div className="plate-raised absolute left-0 top-[32px] z-30 w-[310px] py-1" role="menu" aria-label="Network">
+          {networks.map((network) => (
+            <a
+              key={network.id}
+              href={network.href}
+              role="menuitemradio"
+              aria-checked={network.active}
+              onClick={() => setOpen(false)}
+              className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-raised ${
+                network.active ? 'text-ink' : 'text-ink-2'
+              }`}
+            >
+              <span className="flex flex-col gap-0.5">
+                <span className="figure text-meta">{network.label}</span>
+                <span className="text-label text-ink-3">{network.detail}</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="figure text-label text-ink-3">{network.id}</span>
+                {network.active ? (
+                  <svg viewBox="0 0 12 12" className="h-[11px] w-[11px] text-emerald" aria-hidden="true">
+                    <path d="M1.5 6.5 4.5 9.5 10.5 3" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="square" />
+                  </svg>
+                ) : (
+                  <span className="text-label text-ink-3">switch</span>
+                )}
+              </span>
+            </a>
+          ))}
+          <p className="border-t border-rule px-3 py-2 text-label leading-relaxed text-ink-3">
+            Each network is its own build: addresses, explorer and RPC follow the selection.
+          </p>
+        </div>
+      ) : null}
+    </div>
   )
 }
 
@@ -73,7 +155,7 @@ export function AppHeader() {
           <Wordmark />
         </Link>
         <span className="h-6 w-px bg-rule" aria-hidden="true" />
-        <NetworkBadge />
+        <NetworkSwitch />
         <VerifiedChip />
 
         <nav className="ml-1 hidden items-center gap-0 md:flex" aria-label="Sections">
@@ -91,7 +173,7 @@ export function AppHeader() {
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <SourcePill />
-          <DemoSignerButton />
+          {DEMO_SIGNER_ENABLED ? <DemoSignerButton /> : null}
           <ConnectButton />
         </div>
       </div>

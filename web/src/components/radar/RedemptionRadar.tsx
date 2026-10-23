@@ -49,8 +49,10 @@ export function RedemptionRadar({
 
   return (
     <div className="flex flex-col">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule px-3 py-2">
-        <span className="etched min-w-0 flex-1 leading-[1.4]">
+      {/* Fixed-height readout: the text changes on hover, so it must never wrap and grow the panel
+          (that used to shift the whole chart and the table below it). */}
+      <div className="flex h-[34px] items-center justify-between gap-4 overflow-hidden border-b border-rule px-3">
+        <span className="etched min-w-0 flex-1 truncate">
           {focus ? (
             <>
               {BigInt(focus.redemptionBufferMusd) === 0n
@@ -65,7 +67,7 @@ export function RedemptionRadar({
             'Hover the strip to walk the redemption queue'
           )}
         </span>
-        <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <span className="hidden shrink-0 items-center gap-x-4 md:flex">
           <LegendSwatch color="#E11D48" label={BAND_LABEL.tail} />
           <LegendSwatch color="#F7931A" label={BAND_LABEL.watch} />
           <LegendSwatch color="#3A4149" label={BAND_LABEL.safe} />
