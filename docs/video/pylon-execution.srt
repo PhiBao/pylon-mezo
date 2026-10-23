@@ -1,0 +1,27 @@
+1
+00:00:00,150 --> 00:00:04,210
+Execution without a wallet extension.
+
+2
+00:00:04,330 --> 00:00:09,940
+Pylon's demo signer holds a key in the tab and signs the same ballot Rabby would.
+
+3
+00:00:10,060 --> 00:00:15,880
+Memory only. Never storage, never a request body.
+
+4
+00:00:16,000 --> 00:00:25,540
+It is the owner of the live position: zero point zero four five seven BTC, two thousand and fifty-one MUSD, one hundred and eighty-one percent.
+
+5
+00:00:25,660 --> 00:00:33,260
+Size a loop: half a milli-BTC. The x-ray prices every leg before anything is signed.
+
+6
+00:00:33,380 --> 00:00:41,290
+Execute. The engine relays it, the signature authorises it, the position updates.
+
+7
+00:00:41,410 --> 00:00:43,890
+One signature. One transaction. One hash on the explorer.

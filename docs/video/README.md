@@ -16,6 +16,28 @@ for uploads. Recorded against the **live** terminal (`pylon-mezo.vercel.app`) wi
 | 6 | Proof | 14 explorer-linked ledger rows with kind badges, including the autonomous keeper defence (ICR 172.00% → 181.00%), then the mainnet manifest on chain 31612 |
 | 7 | Close | thesis, links, 43 tests, 12-lens review |
 
+## Execution clip (48 s)
+
+`pylon-execution.mp4` — the demo-signer path end to end, recorded in one take against the live
+terminal: the key pasted into the header (masked), the architect targeting that account, the live
+position at 0.0457 BTC / 2,051.35 MUSD, a 0.0005 BTC loop priced in the x-ray, Execute, and the
+confirmed receipt.
+
+The transaction is real: **`0xe198fb3b11160c2fd489c636da87e247d2d2c760d120c20fd54491a3c0b90861`**
+([explorer](https://explorer.test.mezo.org/tx/0xe198fb3b11160c2fd489c636da87e247d2d2c760d120c20fd54491a3c0b90861)).
+It moved the position to **0.046202 BTC / 2,090.85 MUSD / 180.4% ICR**; the reserve earned its
+0.20% fee (fees 2.62 → 2.70 MUSD, share price 1.002370 → 1.002442). The deck and README carry the
+post-execution figures; the 1:57 pitch video was recorded before it, so its narration still says
+0.0457 BTC / 2,051 MUSD — the live drift is the execution itself.
+
+The key never appears in the clip: the field is a password input, and the key was read from the
+operator's env file at record time, never written to the story file or the repo.
+
+The recording also exposed a real product bug: the Engine Relay route asked the server for
+`/api/v1/build/*`, which did not exist, so the relay could never execute. That is fixed — positions
+are driven directly by the engine (their owner authorises it) and native troves still take the
+borrower's ballot.
+
 ## How it was produced
 
 The video was rendered with the `demo-video-template` pipeline — Playwright records real HTML pages,

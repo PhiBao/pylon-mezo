@@ -98,7 +98,7 @@ the x402 endpoint also serve Track 2 — Access and Distribution.
 `0x0e64B682Add80A61d24E61ed360b3F3679C6860a`, a live shielded position
 `0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326`. On the audited generation: the **position-mode flash loop**
 (`0xc1517166…`), the **position-mode unwind** (`0x4a2d139a…`), a **live shield loan** of 332.18 MUSD with
-2.62 MUSD of fees earned and a rising share price (1.002370), the claim enforced in code
+2.70 MUSD of fees earned and a rising share price (1.002442), the claim enforced in code
 (`0xa06fe405`), and an **autonomous keeper defence** (`0x456e815b…`).
 
 **Mainnet, live with real value** — `PylonFlashEngine` `0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D`,
@@ -127,6 +127,9 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
   network chip switches between the two bundles.
 * Demo execution without an extension: **Demo key** in the header signs trove ballots locally with a
   pasted testnet key (memory only), for recording the flow when MetaMask/Rabby is not available.
+* Executed through that path: **0xe198fb3b11160c2fd489c636da87e247d2d2c760d120c20fd54491a3c0b90861** —
+  a 0.0005 BTC loop relayed by the Fly engine, confirmed on Mezo Testnet; the 48-second clip is
+  `docs/video/pylon-execution.mp4`.
 * Repository: **https://github.com/PhiBao/pylon-mezo** (public; full history, tests, deployment records
   for both chains, the audit report and the engineering log)
 * Mainnet contracts: engine `0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D`, reserve
