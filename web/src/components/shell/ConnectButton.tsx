@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAccount, useChainId, useConnect, useConnectors, useDisconnect } from 'wagmi'
 import { useHydrated } from '@/hooks'
-import { ACTIVE_CHAIN, EXPLORER_URL, explorerAddress } from '@/lib/chain'
-import { ensureChain, type Eip1193Provider } from '@/lib/wallet'
+import { ACTIVE_CHAIN, explorerAddress } from '@/lib/chain'
+import { useSwitchToActiveChain } from '@/state/use-auto-network'
 import { fmtBtc, fmtMusd, shortAddress } from '@/lib/format'
 import { useWalletState } from '@/state/queries'
 
@@ -20,7 +20,7 @@ const Caret = () => (
  */
 export function ConnectButton() {
   const hydrated = useHydrated()
-  const { address, isConnected, connector } = useAccount()
+  const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const connectors = useConnectors()
   const { connect, isPending, error } = useConnect()
@@ -30,14 +30,13 @@ export function ConnectButton() {
   const container = useRef<HTMLDivElement | null>(null)
   const wallet = useWalletState(address ?? null)
 
-  // Explicit switch: EIP-3326, then EIP-3085 if the wallet does not know the chain. This is what
+  // Explicit switch: EIP-3326, then EIP-3085 if the wallet does not know the chain — that is what
   // makes the wallet show its "add network" prompt instead of failing the switch silently.
+  const switchToActiveChain = useSwitchToActiveChain()
   const switchNetwork = async () => {
     setSwitchError(null)
     try {
-      const provider = (await connector?.getProvider()) as Eip1193Provider | undefined
-      if (!provider) return
-      await ensureChain(provider, ACTIVE_CHAIN, EXPLORER_URL)
+      await switchToActiveChain()
     } catch (error) {
       setSwitchError(
         (error as { message?: string })?.message?.slice(0, 160) ??
