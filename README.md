@@ -375,11 +375,15 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
 
 ### Deployed application
 
-* **Live terminal:** <https://phibao.github.io/pylon-mezo/> — fully functional on Mezo Testnet reads with
+* **Live terminal:** <https://pylon-mezo.vercel.app/> — fully functional on Mezo Testnet reads with
   **no backend and no wallet** (the header shows `RPC READ-ONLY`). Hosted straight from `web/out` on
   GitHub Pages.
 * **Local:** `cd web && pnpm dev` (or `pnpm exec serve out` for the production bundle). With the engine
   service running the header switches to `ENGINE API` and the solver, keeper and x402 surfaces light up.
+* **Hosting:** the terminal is a Next.js static export, so it runs on any CDN — Vercel (canonical),
+  GitHub Pages (a mirror at `/pylon-mezo`), or a local `serve out`. The Rust engine is deliberately not
+  part of the terminal deploy: it is a separate service, because Vercel has no Rust runtime, and the
+  terminal is complete without it.
 * **Engine service:** `pylon-server serve` (Rust binary). Any host with outbound RPC works.
 * **Network:** Mezo Testnet, chain ID `31611`, explorer <https://explorer.test.mezo.org>.
 

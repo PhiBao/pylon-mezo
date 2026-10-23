@@ -118,7 +118,7 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
 
 ### Links
 
-* Live deployment: **https://phibao.github.io/pylon-mezo/** — the full terminal, running on live Mezo
+* Live deployment: **https://pylon-mezo.vercel.app/** — the full terminal, running on live Mezo
   Testnet reads with no wallet and no backend required
 * Repository: **https://github.com/PhiBao/pylon-mezo** (public; full history, tests, deployment records
   for both chains, the audit report and the engineering log)
