@@ -50,7 +50,7 @@
     },
     {
       "id": "s3_key",
-      "text": "No wallet extension. Paste a key, and the terminal becomes that account \u2014 then size the loop: half a milli-BTC.",
+      "text": "First, connect the wallet that owns the trove. Pylon reads it live.",
       "scene": {
         "kind": "page",
         "src": "https://pylon-mezo.vercel.app/",
@@ -148,27 +148,33 @@
       "text": "One switch, two networks. The mainnet bundle reads Mezo directly \u2014 real contract addresses, real reserve state \u2014 while the testnet bundle keeps the hosted engine.",
       "scene": {
         "kind": "page",
-        "src": "https://pylon-mezo.vercel.app/mainnet/",
+        "src": "https://pylon-mezo.vercel.app/",
         "zoom": 1.2,
         "wait_for": [
-          "text=Mezo mainnet",
-          "text=Shield reserve"
+          "text=Redemption radar"
         ],
-        "settle": 2.0,
+        "settle": 1.5,
         "actions": [
+          {
+            "action": "click",
+            "sel": "header button[aria-haspopup=\"menu\"]",
+            "after": 1.5
+          },
+          {
+            "action": "click",
+            "sel": "text=Mezo mainnet",
+            "after": 1.0,
+            "wait_for": [
+              "text=Total assets"
+            ],
+            "wait_timeout": 30000
+          },
           {
             "action": "scrollTo",
             "sel": "text=Total assets",
             "dur": 1.1,
             "at": 0.35,
-            "after": 2.0
-          },
-          {
-            "action": "hover",
-            "sel": "text=Total assets",
-            "settle": 0,
-            "glide": 0.8,
-            "after": 2.2
+            "after": 1.8
           }
         ]
       }

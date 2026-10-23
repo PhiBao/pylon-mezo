@@ -18,64 +18,63 @@ Redemptions start at the lowest ratio above one hundred and ten
 percent, with no liquidation warning — and repaying needs MUSD a
 
 5
-00:00:29,609 --> 00:00:31,928
-No wallet extension.
+00:00:29,609 --> 00:00:33,113
+First, connect the wallet that owns the trove.
 
 6
-00:00:31,878 --> 00:00:37,998
-Paste a key, and the terminal becomes that account — then size the
-loop: half a milli-BTC.
+00:00:33,064 --> 00:00:35,342
+Pylon reads it live.
 
 7
-00:00:39,000 --> 00:00:42,908
+00:00:36,359 --> 00:00:40,268
 The x-ray prices every leg before anything is signed.
 
 8
-00:00:42,857 --> 00:00:49,615
+00:00:40,217 --> 00:00:46,975
 Execute: the engine relays it, the signature authorises the change,
 and the position updates on chain.
 
 9
-00:00:49,615 --> 00:00:52,298
+00:00:46,975 --> 00:00:49,658
 Confirmed on Mezo Testnet.
 
 10
-00:00:53,310 --> 00:01:03,037
+00:00:50,670 --> 00:01:00,397
 The shield reserve is the other half: one thousand one hundred and
 eight MUSD of pooled capital, lent only to a registered position, and
 
 11
-00:01:02,987 --> 00:01:07,037
+00:01:00,347 --> 00:01:04,397
 The claim blocks collateral release until the loan is settled.
 
 12
-00:01:07,659 --> 00:01:18,951
+00:01:05,019 --> 00:01:16,311
 Every operation resolves to a transaction: a flash loop, an unwind, a
 full exit, and a keeper defence that moved a position from one hundred
 
 13
-00:01:18,900 --> 00:01:22,546
+00:01:16,260 --> 00:01:19,906
 The same audited generation is live on mainnet.
 
 14
-00:01:23,159 --> 00:01:25,817
+00:01:20,519 --> 00:01:23,177
 One switch, two networks.
 
 15
-00:01:25,768 --> 00:01:33,763
+00:01:23,128 --> 00:01:31,123
 The mainnet bundle reads Mezo directly — real contract addresses, real
 reserve state — while the testnet bundle keeps the hosted engine.
 
 16
-00:01:34,359 --> 00:01:35,950
+00:01:32,119 --> 00:01:33,709
 Pylon.
 
 17
-00:01:35,900 --> 00:01:39,950
+00:01:33,659 --> 00:01:37,709
 Non-custodial leverage and defence for Mezo troves.
 
 18
-00:01:39,950 --> 00:01:46,955
+00:01:37,709 --> 00:01:44,715
 Forty-three contract tests, a twelve-lens security review, a live
 terminal, and a public repository.
 

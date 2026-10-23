@@ -396,10 +396,10 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
   `RPC read-only` and the mainnet contract set). The network chip in the header links between them.
 * **Network:** Mezo Testnet, chain ID `31611`, explorer <https://explorer.test.mezo.org>; mainnet,
   chain ID `31612`, explorer <https://explorer.mezo.org>.
-* **No-extension demo:** the header's **Demo key** control accepts a private key at runtime and signs
-  the same EIP-712 ballots locally, so a loop/unwind/exit can be executed without MetaMask or Rabby.
-  The key is held in the tab's memory only (never storage) and is forgotten on reload.
-* **Rendered walkthrough (1:47):** `docs/video/pylon-demo.mp4` — narrated, 1920×1080, subtitles burned
+* **Recording aid (not shipped):** with `NEXT_PUBLIC_DEMO_SIGNER=1` the header offers a **Demo key**
+  control that signs the same EIP-712 ballots locally, for recording when no wallet extension is
+  available. Production builds do not set it, so the public terminal shows only **Connect**.
+* **Rendered walkthrough (1:45):** `docs/video/pylon-demo.mp4` — narrated, 1920×1080, subtitles burned
   in, sidecar `docs/video/pylon-demo.srt`. Recorded against the live terminal with the engine
   connected, and it contains a **real relayed execution** (`0xe198fb3b…b90861`). Scene-by-scene notes
   and the re-render source are in `docs/video/README.md`.

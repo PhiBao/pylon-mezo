@@ -125,8 +125,9 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
 * Live mainnet build: **https://pylon-mezo.vercel.app/mainnet/** — the same terminal prerendered
   against chain 31612 (RPC-only, mainnet contract set, real mainnet reserve state). The header's
   network chip switches between the two bundles.
-* Demo execution without an extension: **Demo key** in the header signs trove ballots locally with a
-  pasted testnet key (memory only), for recording the flow when MetaMask/Rabby is not available.
+* Execution path: the terminal connects an injected wallet, signs the trove ballot, and the hosted
+  engine relays it. The demo video shows a real relayed loop; production hides the recording-only
+  demo-key control.
 * Executed through that path: **0xe198fb3b11160c2fd489c636da87e247d2d2c760d120c20fd54491a3c0b90861** —
   a 0.0005 BTC loop relayed by the Fly engine, confirmed on Mezo Testnet and shown in the demo
   video (`docs/video/pylon-demo.mp4`, from 0:38).
@@ -138,7 +139,7 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
   [explorer.mezo.org](https://explorer.mezo.org)
 * Engine service (radar solver, keeper, x402): `cd server && cargo run --release -- serve` — the API the
   hosted terminal uses when it is reachable; `server/.env.mainnet.example` is the mainnet variant
-* Product deck: **`docs/deck/pylon-deck.pdf`** (10 slides) · deck copy: `docs/PITCH.md` · 2-minute pitch video: **`docs/video/pylon-demo.mp4`** (1:47, narrated, includes a live execution, subtitles +
+* Product deck: **`docs/deck/pylon-deck.pdf`** (10 slides) · deck copy: `docs/PITCH.md` · 2-minute pitch video: **`docs/video/pylon-demo.mp4`** (1:45, narrated, includes a live execution, subtitles +
   sidecar `.srt`); the script and transaction index stay in `docs/DEMO_SCRIPT.md` · diagram set: `docs/diagrams/01-atomic-paths.png`, `02-redemption-queue.png`,
   `03-system-map.png`
 * Mainnet readiness and the cost ladder: `docs/MAINNET-READINESS.md` · deploy and escape procedures:
