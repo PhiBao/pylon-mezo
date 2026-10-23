@@ -22,23 +22,20 @@ Links: https://pylon-mezo.vercel.app | https://pylon-mezo.vercel.app/mainnet/ | 
 
 ---
 
-## Milestone
+## Milestone (plan for Wave 2)
 
-Pylon is a tool for people who borrow MUSD against Bitcoin on Mezo.
+In wave 2 we will take Pylon from a working testnet and mainnet deployment to a product that can be used with real money end to end.
 
-The problem: a Mezo loan can be liquidated, but it can also be redeemed against. Anyone holding MUSD can repay the lowest-ratio trove above 110% and take its BTC. Borrowers cannot see that queue, cannot easily lever up, and cannot repay without already holding MUSD.
+1. Mainnet execution. Fund a mainnet trove above Mezo's 1,800 MUSD minimum debt and run the full flow there: loop, unwind, exit and a shield defence, each with a public transaction.
 
-What Pylon does, on the borrower's own trove:
+2. External audit and controls. Commission an independent audit of the contracts and the relay, then add multisig ownership and role separation for the reserve before any third-party capital.
 
-- Flash Loop: borrow MUSD, swap it to BTC, add it as collateral and repay the flash loan in one transaction.
-- Flash Unwind: repay debt using the trove's own collateral, with no MUSD in the wallet.
-- Flash Exit: close the trove and return the remaining BTC.
-- Redemption Shield: a MUSD reserve that only lends to repay a registered position's debt. The position cannot release collateral until the loan is settled, so the protection is enforced by code.
+3. Shield for native troves. Today the shield works on Pylon positions. Wave 2 adds defence ballots for native Mezo troves, so a borrower can keep the trove they already have and still be defended.
 
-The owner signs one EIP-712 message per action. Pylon never holds the position or the funds.
+4. Keeper market. Open defence to third-party keepers with a fee, so a position can be defended even when its owner is offline.
 
-Under the hood: Solidity and Foundry contracts, a Rust (Axum) engine, and a Next.js terminal. 43 contract tests and 9 Rust tests. Both networks are deployed and public.
+5. More MUSD pairs. Mezo mainnet lists 33 MUSD pairs, and the engine already takes its venues as constructor arguments. Wave 2 adds the top pairs (mUSDC, mUSDT, tokenised equity) with per-pair limits.
 
-Why it matters: Mezo's redemption risk is invisible in most interfaces, and the operations borrowers need are the ones that require MUSD upfront. Pylon makes the queue readable, the leverage atomic, and the defence automatic.
+6. Reliability. Write relayed executions into the proof ledger, add RPC failover, alert on keeper and reserve health, and publish an incident runbook.
 
-Links: https://pylon-mezo.vercel.app | https://pylon-mezo.vercel.app/mainnet/ | https://github.com/PhiBao/pylon-mezo
+Success for wave 2: one real mainnet loop, one mainnet shield defence, an external audit report, and a keeper that defends a position nobody is watching.
