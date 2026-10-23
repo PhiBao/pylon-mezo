@@ -133,6 +133,7 @@ export function LoopControls({
   }
 
   // The slider works on a milli-BTC grid: fine enough for any real trove, integer-exact for quotes.
+  const markFixed = maxCollAdd < 10n ** 16n ? 4 : maxCollAdd < 10n ** 17n ? 3 : 2
   const sliderValue = Number(collAdd / 10n ** 15n)
   const sliderMax = Math.max(1, Number(maxCollAdd / 10n ** 15n))
 
@@ -242,9 +243,10 @@ export function LoopControls({
           captionRight={maxCollAdd === 0n ? 'blocked below CCR' : `max ${fmtBtc(maxCollAdd)}`}
           marks={[
             { value: 0, label: '0' },
-            { value: Math.max(1, Math.round(sliderMax / 4)), label: fmtBtc(BigInt(Math.round(sliderMax / 4)) * 10n ** 15n, { fixed: 2 }) },
-            { value: Math.max(1, Math.round(sliderMax / 2)), label: fmtBtc(BigInt(Math.round(sliderMax / 2)) * 10n ** 15n, { fixed: 2 }) },
-            { value: sliderMax, label: fmtBtc(maxCollAdd, { fixed: 2 }) },
+            // Precision follows the ceiling: a 0.01 BTC trove must not label its quarter as "0.00".
+            { value: Math.max(1, Math.round(sliderMax / 4)), label: fmtBtc(BigInt(Math.round(sliderMax / 4)) * 10n ** 15n, { fixed: markFixed }) },
+            { value: Math.max(1, Math.round(sliderMax / 2)), label: fmtBtc(BigInt(Math.round(sliderMax / 2)) * 10n ** 15n, { fixed: markFixed }) },
+            { value: sliderMax, label: fmtBtc(maxCollAdd, { fixed: markFixed }) },
           ]}
         />
 

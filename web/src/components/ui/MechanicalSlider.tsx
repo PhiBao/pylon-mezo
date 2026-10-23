@@ -159,8 +159,8 @@ export function MechanicalSlider({
         </div>
       </div>
 
-      {/* Ruled scale: minor ticks per snap step, major ticks every fifth, labels at named marks. */}
-      <div className="relative h-6 pt-1">
+      {/* Ruled scale: minor ticks per snap step, major ticks every fifth. */}
+      <div className="relative h-[6px]">
         <svg viewBox="0 0 1000 10" preserveAspectRatio="none" className="h-[6px] w-full" aria-hidden="true">
           {Array.from({ length: steps + 1 }).map((_, index) => {
             const major = index % 5 === 0
@@ -179,28 +179,37 @@ export function MechanicalSlider({
             )
           })}
         </svg>
+      </div>
+
+      {/* Labels get their own row. The last mark used to be centred at 100% with almost no width,
+          so its label wrapped into the caption underneath; edge labels now pin to their edge. */}
+      <div className="relative mt-1 h-[13px]">
         {marks.map((mark) => {
           const position = max === min ? 0 : ((mark.value - min) / (max - min)) * 100
+          const edge = position >= 96 ? 'right' : position <= 4 ? 'left' : 'center'
           return (
             <button
               key={mark.value}
               type="button"
               disabled={disabled}
               onClick={() => onChange(snap(mark.value))}
-              className="absolute top-[7px] -translate-x-1/2 px-1 font-mono text-[9px] uppercase tracking-[0.1em] text-ink-3 transition-colors hover:text-ink disabled:cursor-not-allowed"
-              style={{ left: `${position}%` }}
+              className={`absolute top-0 whitespace-nowrap px-1 font-mono text-[9px] uppercase leading-[13px] tracking-[0.1em] text-ink-3 transition-colors hover:text-ink disabled:cursor-not-allowed ${
+                edge === 'right' ? 'right-0' : edge === 'left' ? 'left-0' : '-translate-x-1/2'
+              }`}
+              style={edge === 'center' ? { left: `${position}%` } : undefined}
             >
               {mark.label}
             </button>
           )
         })}
-        {captionLeft ? (
-          <span className="absolute bottom-0 left-0 figure text-label text-ink-3">{captionLeft}</span>
-        ) : null}
-        {captionRight ? (
-          <span className="absolute bottom-0 right-0 figure text-label text-ink-3">{captionRight}</span>
-        ) : null}
       </div>
+
+      {captionLeft || captionRight ? (
+        <div className="mt-1 flex items-baseline justify-between gap-3">
+          <span className="figure text-label text-ink-3">{captionLeft}</span>
+          <span className="figure text-label text-ink-3">{captionRight}</span>
+        </div>
+      ) : null}
     </div>
   )
 }

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { ConnectButton } from './ConnectButton'
 import { DemoSignerButton } from './DemoSignerButton'
 import { DEMO_SIGNER_ENABLED } from '@/state/demo-signer'
+import { useAutoNetwork } from '@/state/use-auto-network'
 import { Wordmark } from './Wordmark'
 import { ACTIVE_CHAIN, EXPLORER_URL, IS_MAINNET, NETWORK_LABEL } from '@/lib/chain'
 import { useRuntimeConfig } from '@/state/queries'
@@ -147,6 +148,7 @@ function VerifiedChip() {
 
 export function AppHeader() {
   const pathname = usePathname()
+  useAutoNetwork()
 
   return (
     <header className="sticky top-0 z-20 border-b border-rule bg-canvas">
