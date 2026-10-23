@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { useAccount, useSwitchChain, useWalletClient } from 'wagmi'
-import { ACTIVE_CHAIN } from '@/lib/chain'
+import { useAccount } from 'wagmi'
+import { ACTIVE_CHAIN, EXPLORER_URL } from '@/lib/chain'
+import { ensureChain, type Eip1193Provider } from '@/lib/wallet'
 
 /**
  * Keep the wallet on the chain this bundle serves.
@@ -15,9 +16,7 @@ import { ACTIVE_CHAIN } from '@/lib/chain'
  * the prompt never loops.
  */
 export function useAutoNetwork() {
-  const { address, chainId, isConnected } = useAccount()
-  const { switchChainAsync } = useSwitchChain()
-  const { data: walletClient } = useWalletClient()
+  const { address, chainId, isConnected, connector } = useAccount()
   const attempted = useRef<string | null>(null)
 
   useEffect(() => {
@@ -28,17 +27,14 @@ export function useAutoNetwork() {
 
     const run = async () => {
       try {
-        await switchChainAsync({ chainId: ACTIVE_CHAIN.id })
+        const provider = (await connector?.getProvider()) as Eip1193Provider | undefined
+        if (!provider) return
+        await ensureChain(provider, ACTIVE_CHAIN, EXPLORER_URL)
       } catch {
-        try {
-          await walletClient?.addChain({ chain: ACTIVE_CHAIN })
-          await switchChainAsync({ chainId: ACTIVE_CHAIN.id })
-        } catch {
-          // Declined or unsupported — ConnectButton still offers the manual switch.
-        }
+        // Declined or unsupported — the header keeps a manual switch, and signing enforces it again.
       }
     }
 
     void run()
-  }, [isConnected, address, chainId, switchChainAsync, walletClient])
+  }, [isConnected, address, chainId, connector])
 }

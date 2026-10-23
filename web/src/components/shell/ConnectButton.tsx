@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useAccount, useChainId, useConnect, useConnectors, useDisconnect, useSwitchChain } from 'wagmi'
+import { useAccount, useChainId, useConnect, useConnectors, useDisconnect } from 'wagmi'
 import { useHydrated } from '@/hooks'
-import { ACTIVE_CHAIN, explorerAddress } from '@/lib/chain'
+import { ACTIVE_CHAIN, EXPLORER_URL, explorerAddress } from '@/lib/chain'
+import { ensureChain, type Eip1193Provider } from '@/lib/wallet'
 import { fmtBtc, fmtMusd, shortAddress } from '@/lib/format'
 import { useWalletState } from '@/state/queries'
 
@@ -19,15 +20,31 @@ const Caret = () => (
  */
 export function ConnectButton() {
   const hydrated = useHydrated()
-  const { address, isConnected } = useAccount()
+  const { address, isConnected, connector } = useAccount()
   const chainId = useChainId()
   const connectors = useConnectors()
   const { connect, isPending, error } = useConnect()
   const { disconnect } = useDisconnect()
-  const { switchChain } = useSwitchChain()
   const [open, setOpen] = useState(false)
+  const [switchError, setSwitchError] = useState<string | null>(null)
   const container = useRef<HTMLDivElement | null>(null)
   const wallet = useWalletState(address ?? null)
+
+  // Explicit switch: EIP-3326, then EIP-3085 if the wallet does not know the chain. This is what
+  // makes the wallet show its "add network" prompt instead of failing the switch silently.
+  const switchNetwork = async () => {
+    setSwitchError(null)
+    try {
+      const provider = (await connector?.getProvider()) as Eip1193Provider | undefined
+      if (!provider) return
+      await ensureChain(provider, ACTIVE_CHAIN, EXPLORER_URL)
+    } catch (error) {
+      setSwitchError(
+        (error as { message?: string })?.message?.slice(0, 160) ??
+          `Could not switch to ${ACTIVE_CHAIN.name}. Add it in your wallet and try again.`,
+      )
+    }
+  }
 
   useEffect(() => {
     if (!open) return
@@ -92,7 +109,17 @@ export function ConnectButton() {
   }
 
   return (
-    <div ref={container} className="relative">
+    <div ref={container} className="relative flex items-center gap-2">
+      {wrongChain ? (
+        <button
+          type="button"
+          className="btn border-vermilion/60 text-vermilion"
+          onClick={() => void switchNetwork()}
+          title={`Switch to ${ACTIVE_CHAIN.name} (${ACTIVE_CHAIN.id})`}
+        >
+          Switch network
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
@@ -131,6 +158,9 @@ export function ConnectButton() {
             </div>
           </div>
 
+          {switchError ? (
+            <p className="pb-2 text-label leading-relaxed text-vermilion">{switchError}</p>
+          ) : null}
           <div className="flex flex-col gap-1 border-t border-rule pt-3">
             <a className="link figure text-meta" href={explorerAddress(address)} target="_blank" rel="noreferrer noopener">
               View on Mezo explorer ↗
@@ -146,7 +176,7 @@ export function ConnectButton() {
               <button
                 type="button"
                 className="link figure text-left text-meta text-vermilion"
-                onClick={() => switchChain({ chainId: ACTIVE_CHAIN.id })}
+                onClick={() => void switchNetwork()}
               >
                 Switch to {ACTIVE_CHAIN.name} ({ACTIVE_CHAIN.id})
               </button>

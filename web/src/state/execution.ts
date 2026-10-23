@@ -4,7 +4,8 @@ import { useCallback, useState } from 'react'
 import { useAccount, useChainId, useSendTransaction, useSignTypedData, useSwitchChain } from 'wagmi'
 import type { Address, Hex } from 'viem'
 import { api, ApiError, type Eip712TypedData } from '@/lib/api'
-import {ACTIVE_CHAIN, DEPLOYED, explorerTx, NETWORK_LABEL } from '@/lib/chain'
+import { ACTIVE_CHAIN, DEPLOYED, EXPLORER_URL, explorerTx, NETWORK_LABEL } from '@/lib/chain'
+import { ensureChain, isWrongChainError, type Eip1193Provider } from '@/lib/wallet'
 import {
   applySignatureTemplate,
   computeHints,
@@ -102,13 +103,31 @@ export interface AtomicExecution {
  * connected wallet. Targets outside the deployed Pylon/Mezo set are refused.
  */
 export function useAtomicExecution(): AtomicExecution {
-  const { address } = useAccount()
+  const { address, connector } = useAccount()
   const chainId = useChainId()
   const demo = useDemoSigner()
   const { signTypedDataAsync } = useSignTypedData()
   const { sendTransactionAsync } = useSendTransaction()
   const { switchChainAsync } = useSwitchChain()
   const [state, setState] = useState<ExecState>(initial)
+
+  /**
+   * A ballot is bound to the chain in its EIP-712 domain, and wallets refuse to sign one whose
+   * chainId is not the active chain (Rabby: "chainId should be same as current chainId"). The switch
+   * is therefore enforced here, at the moment of signing, not only when the wallet connects.
+   */
+  const requireChain = useCallback(async () => {
+    if (demoAccount()) return
+    const provider = (await connector?.getProvider()) as Eip1193Provider | undefined
+    if (!provider) return
+    try {
+      await ensureChain(provider, ACTIVE_CHAIN, EXPLORER_URL)
+    } catch {
+      throw new Error(
+        `Switch your wallet to ${ACTIVE_CHAIN.name} (${ACTIVE_CHAIN.id}) to sign this ballot.`,
+      )
+    }
+  }, [connector])
 
   // A demo key, when loaded, is the signer for this session: it signs the same EIP-712 ballot the
   // wallet would, and sends through the same trusted targets. No extension involved.
@@ -159,6 +178,7 @@ export function useAtomicExecution(): AtomicExecution {
       const label = `Flash loop ${input.collAdd.toString()} wei → ${input.debtAmount.toString()} wei`
       try {
         setState({ stage: 'preparing', label })
+        await requireChain()
         const deadline = deadlineFromNow()
 
         if (route === 'engine') {
@@ -234,6 +254,7 @@ export function useAtomicExecution(): AtomicExecution {
       const label = `Flash unwind ${input.repay.toString()} wei`
       try {
         setState({ stage: 'preparing', label })
+        await requireChain()
         const deadline = deadlineFromNow()
 
         if (route === 'engine') {
@@ -310,6 +331,7 @@ export function useAtomicExecution(): AtomicExecution {
       const label = 'Flash exit — close trove'
       try {
         setState({ stage: 'preparing', label })
+        await requireChain()
         const deadline = deadlineFromNow()
 
         if (route === 'engine') {
@@ -372,6 +394,9 @@ export function useAtomicExecution(): AtomicExecution {
 }
 
 export const describeExecError = (error: unknown): string => {
+  if (isWrongChainError(error)) {
+    return `Your wallet is on a different network. Switch it to ${ACTIVE_CHAIN.name} (${ACTIVE_CHAIN.id}) and retry.`
+  }
   if (error instanceof ApiError) return error.message
   if (error instanceof Error) {
     if (/user rejected|denied/i.test(error.message)) return 'Signature rejected in the wallet'
