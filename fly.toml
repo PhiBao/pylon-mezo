@@ -1,0 +1,55 @@
+# Pylon engine service — the Rust API behind the terminal's relay, radar, quotes and x402 surface.
+#
+# Deploy:  fly deploy
+# Logs:    fly logs
+# Status:  fly status
+#
+# The terminal works without this service (it reads Mezo RPC directly and signs in the wallet);
+# this is what adds the gasless relay, the server-side radar and the paid telemetry endpoint.
+
+app = "pylon-mezo-api"
+primary_region = "fra"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  CHAIN_ID = "31611"
+  RPC_URL = "https://rpc.test.mezo.org"
+  EXPLORER = "https://explorer.test.mezo.org"
+  DATA_DIR = "/data"
+  DEPLOYMENT = "/app/deployments/31611.json"
+  PORT = "8080"
+  # The relay pays gas for a *signed* trove action; the engine verifies the signature on chain, so
+  # it can only ever do what the signer authorised. Testnet only.
+  ALLOW_RELAY = "1"
+  AUTO_DEFEND = "0"
+  POSITIONS = "0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326"
+  X402_PAY_TO = "0x4B965638eE7e42587019774fF50407204F83990d"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 100
+    hard_limit = 200
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "20s"
+  method = "GET"
+  path = "/health"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+
+[[mounts]]
+  source = "pylon_data"
+  destination = "/data"

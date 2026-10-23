@@ -17,3 +17,8 @@ web/out/
 web/next-env.d.ts
 # os
 .DS_Store
+
+# hosting + second service data dir
+web/.vercel/
+web/.env.local
+server/data-mainnet/

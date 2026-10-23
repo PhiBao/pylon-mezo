@@ -320,14 +320,18 @@ state-changing flows are exercised through the Rust engine rather than through a
 
 ### Engine service
 
+**Hosted:** <https://pylon-mezo-api.fly.dev> — the same service on Fly.io (`fly.toml`, `Dockerfile` at
+the repo root). The terminal's build points at it with `NEXT_PUBLIC_API_BASE`, which is why the live
+header reads `ENGINE API` rather than `RPC READ-ONLY`. Redeploy with `fly deploy`; the machine suspends
+when idle and wakes on the first request.
+
 ```bash
 cd server
-cp ../contracts/deployments/31611.json .   # deployment record (addresses per chain)
 cat > .env <<'EOF'
-PRIVATE_KEY=0x…            # operator key (keeper + proof runner); never required for the API alone
+PRIVATE_KEY=0x…            # operator key (keeper + relay); never required for the API alone
 CHAIN_ID=31611
 RPC_URL=https://rpc.test.mezo.org
-DEPLOYMENT=./31611.json
+DEPLOYMENT=../contracts/deployments/31611.json
 X402_PAY_TO=0x…            # MUSD recipient for the paid telemetry endpoint
 EOF
 cargo build --release
@@ -375,16 +379,18 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
 
 ### Deployed application
 
-* **Live terminal:** <https://pylon-mezo.vercel.app/> — fully functional on Mezo Testnet reads with
-  **no backend and no wallet** (the header shows `RPC READ-ONLY`). Hosted straight from `web/out` on
-  GitHub Pages.
+* **Live terminal:** <https://pylon-mezo.vercel.app/> — on Vercel, connected to the hosted engine
+  (the header reads `ENGINE API`), so the server-side radar, quotes, relay and `x402` surfaces are all
+  live. It also works with **no backend and no wallet**: reads fall back to Mezo RPC directly.
+* **Live engine:** <https://pylon-mezo-api.fly.dev> — the Rust service on Fly.io. `GET /health`,
+  `/api/v1/radar`, `/api/v1/reserve`, `/api/v1/proofs`, the paid `/x402` endpoint and the
+  `POST /api/v1/execute/*` relay (testnet only, `ALLOW_RELAY=1`).
 * **Local:** `cd web && pnpm dev` (or `pnpm exec serve out` for the production bundle). With the engine
   service running the header switches to `ENGINE API` and the solver, keeper and x402 surfaces light up.
-* **Hosting:** the terminal is a Next.js static export, so it runs on any CDN — Vercel (canonical),
-  GitHub Pages (a mirror at `/pylon-mezo`), or a local `serve out`. The Rust engine is deliberately not
-  part of the terminal deploy: it is a separate service, because Vercel has no Rust runtime, and the
-  terminal is complete without it.
-* **Engine service:** `pylon-server serve` (Rust binary). Any host with outbound RPC works.
+* **Hosting:** the terminal is a Next.js static export on Vercel (`cd web && vercel --prod`); the
+  engine is a container on Fly (`fly deploy`). The split is deliberate: Vercel has no Rust runtime, and
+  the terminal stays complete without the engine — reads go straight to Mezo RPC and execution is
+  signed in the user's wallet.
 * **Network:** Mezo Testnet, chain ID `31611`, explorer <https://explorer.test.mezo.org>.
 
 ### What a judge should try first
@@ -513,6 +519,7 @@ written up as commands in **[`docs/MAINNET-RUNBOOK.md`](docs/MAINNET-RUNBOOK.md)
 | `x402` endpoint | **Real 402 challenge + on-chain settlement verification**, on both chains. A real 0.001 MUSD payment settled a paid report on a mainnet trove; the same proof was then refused as a replay. The facilitator path is off by default and must settle. |
 | Native BTC-wallet trove opening through the UI | **Implemented.** The architect's first-run card creates the Pylon position and opens its trove in two wallet transactions, with Mezo's minimums and the live ICR enforced before signing. |
 | Execute relay (`POST /api/v1/execute/*`) | **Implemented and guarded.** The user signs, the operator pays gas, the engine verifies on-chain. Testnet only (`ALLOW_RELAY=1`), rate-limited, and off by default on mainnet. |
+| Hosted engine (Fly) + terminal (Vercel) | **Real, live.** `pylon-mezo-api.fly.dev` serves the radar, reserve, proofs, `x402` and the relay against chain 31611; `pylon-mezo.vercel.app` renders with the engine connected (`ENGINE API`), including the keeper-defence row in the live ledger. |
 | Mezo mainnet deployment | **Real.** Audited generation deployed, funded with real MUSD, a second depositor priced exactly right, a machine payment settled, and the pool migrated to a fresh generation with the capital intact. |
 
 ### What is *not* built

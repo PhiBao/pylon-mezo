@@ -1,0 +1,21 @@
+# The image needs the server source and one deployment record. Everything else is context bloat.
+.git
+web
+docs
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast
+contracts/test
+contracts/script
+contracts/src
+contracts/foundry.toml
+contracts/*.sh
+contracts/.env
+server/target
+server/data
+server/data-mainnet
+server/.env
+server/.env.*
+**/node_modules
+**/out

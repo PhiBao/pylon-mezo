@@ -185,7 +185,10 @@ impl Mezo {
             self.rpc.block_number(),
         );
         let (musd_reserve, btc_reserve, swap_fee_bps) = swap?;
-        let (flash_musd, flash_other, flash_fee_bps) = flash?;
+        let (flash_musd, flash_other, _flash_pool_fee_bps) = flash?;
+        // `flashFeeBps` in this payload is Pylon's origination fee, which is what the terminal's cost
+        // model keeps as `pylonFeeBps`. The venue's own fee comes from `/config` as `flashPoolFeeBps`.
+        let flash_fee_bps = self.flash_fee_bps().await.unwrap_or(0);
         let tcr = tcr?;
         let recovery = recovery?;
         let count = count?;
