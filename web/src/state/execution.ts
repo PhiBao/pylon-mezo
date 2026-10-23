@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { useAccount, useChainId, useSendTransaction, useSignTypedData, useSwitchChain } from 'wagmi'
-import type { Address, Hex, TypedData, TypedDataDomain } from 'viem'
+import type { Address, Hex } from 'viem'
 import { api, ApiError, type Eip712TypedData } from '@/lib/api'
 import {ACTIVE_CHAIN, DEPLOYED, explorerTx, NETWORK_LABEL } from '@/lib/chain'
 import {
@@ -51,22 +51,6 @@ const initial: ExecState = { stage: 'idle' }
 
 const RECEIPT_TIMEOUT_MS = 150_000
 
-const asViemTypedData = (payload: Eip712TypedData) => {
-  if (!payload.domain || !payload.types || !payload.primaryType) {
-    throw new Error('Engine returned incomplete EIP-712 typed data')
-  }
-  if (!(payload.primaryType in payload.types)) {
-    throw new Error(`Engine typed data has no ${payload.primaryType} struct definition`)
-  }
-  return {
-    domain: payload.domain as TypedDataDomain,
-    // The API publishes the struct definitions as plain JSON; the runtime check above guarantees
-    // the primary type exists before viem signs anything.
-    types: payload.types as unknown as TypedData,
-    primaryType: payload.primaryType,
-    message: payload.message,
-  }
-}
 
 export interface LoopRequestInput {
   owner: Address
@@ -177,9 +161,23 @@ export function useAtomicExecution(): AtomicExecution {
         setState({ stage: 'preparing', label })
         const deadline = deadlineFromNow()
 
-        if (route === 'engine' && input.typedData) {
+        if (route === 'engine') {
+          // The relay submits with `outputTo = owner`, so the ballot names the borrower as the
+          // recipient. Positions ignore the signature (their owner authorises the engine), native
+          // troves verify it against exactly these fields.
+          const minPostIcr = minPostIcrFrom(input.targetIcrWad)
+          const intent: LoopIntent = {
+            owner: input.owner,
+            debtAmount: input.debtAmount,
+            collAdd: input.collAdd,
+            minPostICR: minPostIcr,
+            deadline,
+            nonce: await readNonce(input.owner),
+            hints: input.hints,
+            recipient: input.owner,
+          }
           setState({ stage: 'signing', label })
-          const signature = await signTyped(asViemTypedData(input.typedData))
+          const signature = await signTyped(loopTypedData(intent))
           setState({ stage: 'broadcasting', label, route: 'engine' })
           const receipt = await api.executeLoop({
             owner: input.owner,
@@ -187,6 +185,7 @@ export function useAtomicExecution(): AtomicExecution {
             debtAmount: input.debtAmount.toString(),
             signature,
             deadline,
+            minPostIcr: minPostIcr.toString(),
           })
           await confirmReceipt(receipt.txHash as Hex, label)
           return
@@ -237,9 +236,23 @@ export function useAtomicExecution(): AtomicExecution {
         setState({ stage: 'preparing', label })
         const deadline = deadlineFromNow()
 
-        if (route === 'engine' && input.typedData) {
+        if (route === 'engine') {
+          const minPostIcr = minPostIcrFrom(input.targetIcrWad)
+          const intent: UnwindIntent = {
+            owner: input.owner,
+            repay: input.repay,
+            collOut: input.collOut,
+            minPostICR: minPostIcr,
+            deadline,
+            nonce: await readNonce(input.owner),
+            hints: input.hints ?? {
+              upper: '0x0000000000000000000000000000000000000000',
+              lower: '0x0000000000000000000000000000000000000000',
+            },
+            recipient: input.owner,
+          }
           setState({ stage: 'signing', label })
-          const signature = await signTyped(asViemTypedData(input.typedData))
+          const signature = await signTyped(unwindTypedData(intent))
           setState({ stage: 'broadcasting', label, route: 'engine' })
           const receipt = await api.executeUnwind({
             owner: input.owner,
@@ -247,6 +260,7 @@ export function useAtomicExecution(): AtomicExecution {
             collOut: input.collOut.toString(),
             signature,
             deadline,
+            minPostIcr: minPostIcr.toString(),
           })
           await confirmReceipt(receipt.txHash as Hex, label)
           return
@@ -298,9 +312,15 @@ export function useAtomicExecution(): AtomicExecution {
         setState({ stage: 'preparing', label })
         const deadline = deadlineFromNow()
 
-        if (route === 'engine' && input.typedData) {
+        if (route === 'engine') {
+          const intent: ExitIntent = {
+            owner: input.owner,
+            deadline,
+            nonce: await readNonce(input.owner),
+            recipient: input.owner,
+          }
           setState({ stage: 'signing', label })
-          const signature = await signTyped(asViemTypedData(input.typedData))
+          const signature = await signTyped(exitTypedData(intent))
           setState({ stage: 'broadcasting', label, route: 'engine' })
           const receipt = await api.executeExit({ owner: input.owner, signature, deadline })
           await confirmReceipt(receipt.txHash as Hex, label)

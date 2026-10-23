@@ -6,7 +6,6 @@ import { MechanicalSlider } from '@/components/ui/MechanicalSlider'
 import { SpecRow } from '@/components/ui/Panel'
 import { StateBlock } from '@/components/ui/StateBlock'
 import { useDebounced } from '@/hooks'
-import { api, describeError } from '@/lib/api'
 import {
   fmtBps,
   fmtBtc,
@@ -60,7 +59,6 @@ export function UnwindControls({
 }: ArchitectSharedProps) {
   const [repay, setRepay] = useState<bigint>(0n)
   const [text, setText] = useState('')
-  const [buildError, setBuildError] = useState<string | null>(null)
 
   const price = market ? BigInt(market.btcPriceWad) : null
   const poolRate = poolRateFrom(market)
@@ -305,27 +303,19 @@ export function UnwindControls({
         onReset={execution.reset}
         onRun={() => {
           if (!owner || !data) return
-          setBuildError(null)
           if (route === 'engine' && engineAvailable) {
-            void api
-              .buildUnwind({ owner, repay: repay.toString(), collOut: data.suggestedCollOut })
-              .then((build) =>
-                execution.runUnwind(
-                  {
-                    owner,
-                    repay,
-                    collOut: BigInt(build.quote.suggestedCollOut),
-                    targetIcrWad: BigInt(build.quote.postIcrWad),
-                    hints: build.hints,
-                    typedData: build.typedData,
-                    txTemplate: build.txWithSignatureTemplate,
-                    postColl: BigInt(build.quote.postColl),
-                    postDebt: BigInt(build.quote.postDebt),
-                  },
-                  'engine',
-                ),
-              )
-              .catch((error: unknown) => setBuildError(describeError(error)))
+            void execution.runUnwind(
+              {
+                owner,
+                repay,
+                collOut: BigInt(data.suggestedCollOut),
+                targetIcrWad: postIcr,
+                hints: null,
+                postColl,
+                postDebt,
+              },
+              'engine',
+            )
             return
           }
           void execution.runUnwind(
@@ -343,16 +333,6 @@ export function UnwindControls({
         }}
       />
 
-      {buildError ? (
-        <div className="px-3 pb-3">
-          <StateBlock
-            state="error"
-            compact
-            title="Engine could not assemble this unwind"
-            detail={`${buildError} — switch the broadcast route to Self-broadcast to send it from your wallet instead.`}
-          />
-        </div>
-      ) : null}
     </>
   )
 }

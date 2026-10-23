@@ -267,6 +267,7 @@ export const api = {
     debtAmount: Wei
     signature: string
     deadline?: number
+    minPostIcr?: Wei
   }) =>
     request<ExecutionReceipt>('/api/v1/execute/loop', {
       method: 'POST',
@@ -291,6 +292,7 @@ export const api = {
     collOut?: Wei
     signature: string
     deadline?: number
+    minPostIcr?: Wei
   }) =>
     request<ExecutionReceipt>('/api/v1/execute/unwind', {
       method: 'POST',

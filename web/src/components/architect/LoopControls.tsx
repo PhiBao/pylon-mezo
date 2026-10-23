@@ -6,7 +6,6 @@ import { MechanicalSlider } from '@/components/ui/MechanicalSlider'
 import { SpecRow } from '@/components/ui/Panel'
 import { StateBlock } from '@/components/ui/StateBlock'
 import { useDebounced } from '@/hooks'
-import { api, describeError } from '@/lib/api'
 import {
   fmtBps,
   fmtBtc,
@@ -64,7 +63,6 @@ export function LoopControls({
 }: ArchitectSharedProps) {
   const [collAdd, setCollAdd] = useState<bigint>(0n)
   const [text, setText] = useState('')
-  const [buildError, setBuildError] = useState<string | null>(null)
 
   const price = market ? BigInt(market.btcPriceWad) : null
   const fees: FeeModel = {
@@ -365,49 +363,18 @@ export function LoopControls({
         onReset={execution.reset}
         onRun={() => {
           if (!owner || !data) return
-          setBuildError(null)
           const hints = {
             upper: '0x0000000000000000000000000000000000000000' as const,
             lower: '0x0000000000000000000000000000000000000000' as const,
           }
           const debtAmount = BigInt(data.debtDelta)
-          if (route === 'engine' && engineAvailable) {
-            void api
-              .buildLoop({ owner, collAdd: collAdd.toString(), debtAmount: debtAmount.toString() })
-              .then((build) =>
-                execution.runLoop(
-                  {
-                    owner,
-                    collAdd,
-                    debtAmount,
-                    targetIcrWad: BigInt(data.postIcrWad),
-                    hints: build.hints,
-                    typedData: build.typedData,
-                    txTemplate: build.txWithSignatureTemplate,
-                  },
-                  'engine',
-                ),
-              )
-              .catch((error: unknown) => setBuildError(describeError(error)))
-            return
-          }
           void execution.runLoop(
             { owner, collAdd, debtAmount, targetIcrWad: BigInt(data.postIcrWad), hints },
-            'wallet',
+            route === 'engine' && engineAvailable ? 'engine' : 'wallet',
           )
         }}
       />
 
-      {buildError ? (
-        <div className="px-3 pb-3">
-          <StateBlock
-            state="error"
-            compact
-            title="Engine could not assemble this loop"
-            detail={`${buildError} — switch the broadcast route to Self-broadcast to send it from your wallet instead.`}
-          />
-        </div>
-      ) : null}
     </>
   )
 }

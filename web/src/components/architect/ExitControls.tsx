@@ -1,9 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import { SpecRow } from '@/components/ui/Panel'
 import { StateBlock } from '@/components/ui/StateBlock'
-import { api, describeError } from '@/lib/api'
 import { fmtBps, fmtBtc, fmtMusd, fmtUsd, fmtWadPct } from '@/lib/format'
 import { useExitQuote } from '@/state/queries'
 import { ActionBar, type Guard } from './ActionBar'
@@ -29,7 +27,6 @@ export function ExitControls({
   route,
   onRouteChange,
 }: ArchitectSharedProps) {
-  const [buildError, setBuildError] = useState<string | null>(null)
   const quote = useExitQuote(owner, troveState)
   const data = quote.data ?? null
   const price = market ? BigInt(market.btcPriceWad) : null
@@ -184,33 +181,14 @@ export function ExitControls({
         onReset={execution.reset}
         onRun={() => {
           if (!owner) return
-          setBuildError(null)
           if (route === 'engine' && engineAvailable) {
-            void api
-              .buildExit({ owner })
-              .then((build) =>
-                execution.runExit(
-                  { owner, typedData: build.typedData, txTemplate: build.txWithSignatureTemplate },
-                  'engine',
-                ),
-              )
-              .catch((error: unknown) => setBuildError(describeError(error)))
+            void execution.runExit({ owner }, 'engine')
             return
           }
           void execution.runExit({ owner }, 'wallet')
         }}
       />
 
-      {buildError ? (
-        <div className="px-3 pb-3">
-          <StateBlock
-            state="error"
-            compact
-            title="Engine could not assemble this exit"
-            detail={`${buildError} — switch the broadcast route to Self-broadcast to send it from your wallet instead.`}
-          />
-        </div>
-      ) : null}
     </>
   )
 }

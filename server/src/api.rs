@@ -676,6 +676,9 @@ struct LoopRelay {
     coll_add: String,
     signature: String,
     deadline: Option<u64>,
+    /// The signer's floor for the post-operation ICR. Native troves carry this inside the signed
+    /// struct; positions have no struct, so the relay must forward it explicitly.
+    min_post_icr: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -686,6 +689,7 @@ struct UnwindRelay {
     coll_out: Option<String>,
     signature: String,
     deadline: Option<u64>,
+    min_post_icr: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -816,14 +820,30 @@ async fn execute_loop(
             upper: "0x0000000000000000000000000000000000000000".into(),
             lower: "0x0000000000000000000000000000000000000000".into(),
         });
+    let min_post_icr = match req.min_post_icr.as_deref() {
+        Some(v) => match decimal(v, "minPostIcr") {
+            Ok(x) => x,
+            Err(e) => return bad_request(&e.to_string()),
+        },
+        None => U256::ZERO,
+    };
+    let deadline = relay_deadline(req.deadline);
+    if state.mezo.is_position(owner).await.unwrap_or(false) {
+        // A position is an EIP-1167 clone whose owner authorises the engine (`canExecute`), so the
+        // relay key drives it directly — no EIP-712 ballot exists for a contract trove.
+        let calldata = state
+            .mezo
+            .loop_position_calldata(owner, debt, coll_add, &hints, min_post_icr, deadline);
+        return relay_response(&state, calldata).await;
+    }
     let calldata = state.mezo.loop_calldata(
         &hints,
         owner,
         debt,
         coll_add,
         owner,
-        U256::ZERO,
-        relay_deadline(req.deadline),
+        min_post_icr,
+        deadline,
         signature,
     );
     relay_response(&state, calldata).await
@@ -863,19 +883,27 @@ async fn execute_unwind(
         Ok(v) => v,
         Err(e) => return bad_request(&e.to_string()),
     };
-    let calldata = state.mezo.unwind_calldata(
-        &crate::mezo::Hints {
-            upper: "0x0000000000000000000000000000000000000000".into(),
-            lower: "0x0000000000000000000000000000000000000000".into(),
+    let min_post_icr = match req.min_post_icr.as_deref() {
+        Some(v) => match decimal(v, "minPostIcr") {
+            Ok(x) => x,
+            Err(e) => return bad_request(&e.to_string()),
         },
-        owner,
-        repay,
-        coll_out,
-        owner,
-        U256::ZERO,
-        relay_deadline(req.deadline),
-        signature,
-    );
+        None => U256::ZERO,
+    };
+    let deadline = relay_deadline(req.deadline);
+    let hints = crate::mezo::Hints {
+        upper: "0x0000000000000000000000000000000000000000".into(),
+        lower: "0x0000000000000000000000000000000000000000".into(),
+    };
+    if state.mezo.is_position(owner).await.unwrap_or(false) {
+        let calldata = state
+            .mezo
+            .unwind_position_calldata(owner, repay, coll_out, &hints, min_post_icr, deadline);
+        return relay_response(&state, calldata).await;
+    }
+    let calldata = state
+        .mezo
+        .unwind_calldata(&hints, owner, repay, coll_out, owner, min_post_icr, deadline, signature);
     relay_response(&state, calldata).await
 }
 
@@ -897,6 +925,10 @@ async fn execute_exit(
         Err(e) => return bad_request(&e.to_string()),
     };
     let deadline = relay_deadline(req.deadline);
+    if state.mezo.is_position(owner).await.unwrap_or(false) {
+        let calldata = state.mezo.close_position_calldata(owner, owner, deadline);
+        return relay_response(&state, calldata).await;
+    }
     let calldata = state
         .mezo
         .close_calldata(owner, owner, deadline, signature);
