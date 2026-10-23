@@ -1,5 +1,9 @@
 # Pylon — 2-minute demo script
 
+> **Rendered:** `docs/video/pylon-demo.mp4` (1:57, 1920×1080, narrated, subtitles burned in).
+> This file remains the script, timing model and transaction index behind that cut; the scene
+> definitions that produced it are in `docs/video/source/story.json`.
+
 Recording setup: terminal at 1600×1000 (or a 1440-wide window), engine service running
 (`pylon-server serve`), the production bundle served (`cd web && pnpm exec serve out`), wallet
 disconnected. Total run time ≈ 1:55. Every transaction referenced is already mined, so nothing in this

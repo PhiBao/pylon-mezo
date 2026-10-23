@@ -132,9 +132,12 @@ async fn cycle(state: &AppState, auto_defend: bool, operator: Option<Address>) -
     Ok(())
 }
 
+/// A WAD ratio as a percentage: 1.72e18 is 172%, not 1.72%. ICRs are quoted the second way
+/// everywhere else in the terminal, and the ledger note has to agree with the panel it points at.
 fn fmt_wad(v: &U256) -> String {
     let scale = U256::from(1_000_000_000_000_000_000u128);
-    let whole = v / scale;
-    let frac = (v % scale) / U256::from(10_000_000_000_000_000u128);
+    let percent = v * U256::from(100u64);
+    let whole = percent / scale;
+    let frac = (percent % scale) / U256::from(10_000_000_000_000_000u128);
     format!("{whole}.{frac:02}%")
 }

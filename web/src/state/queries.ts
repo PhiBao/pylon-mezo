@@ -3,7 +3,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { api, describeError, shouldFallBack, type LoopQuoteWire } from '@/lib/api'
+import { api, describeError, shouldFallBack, type LoopQuoteWire, type UnwindQuoteWire } from '@/lib/api'
 import { DEPLOYED } from '@/lib/chain'
 import {
   localExitQuote,
@@ -28,6 +28,8 @@ import type {
   LoopQuote,
   Market,
   PositionState,
+  Proof,
+  ProofKind,
   ProofLedger,
   Radar,
   RadarTrove,
@@ -47,6 +49,42 @@ const POLL = {
   proofs: 45_000,
   wallet: 15_000,
 } as const
+
+/**
+ * The engine records operations by their opcode (`flash-loop`, `keeper-defend`), while the terminal's
+ * ledger filters and labels use a smaller display taxonomy. Normalise at the fetch boundary so the
+ * KIND column and the filter chips agree with what the engine actually ran — a keeper defence is a
+ * shield action, and it should appear under the shield filter.
+ */
+const PROOF_KIND: Record<string, ProofKind> = {
+  'flash-loop': 'loop',
+  'position-loop': 'loop',
+  loop: 'loop',
+  'flash-unwind': 'unwind',
+  'position-unwind': 'unwind',
+  unwind: 'unwind',
+  'flash-exit': 'exit',
+  'position-exit': 'exit',
+  exit: 'exit',
+  'shield-defend': 'shield',
+  'keeper-defend': 'shield',
+  'shield-configured': 'shield',
+  shield: 'shield',
+  'reserve-approve': 'reserve',
+  'reserve-deposit': 'reserve',
+  'reserve-withdraw': 'reserve',
+  reserve: 'reserve',
+  'position-created': 'deploy',
+  'position-open': 'deploy',
+  deploy: 'deploy',
+}
+
+const normalizeProofKind = (kind: string): ProofKind => PROOF_KIND[kind] ?? 'deploy'
+
+const normalizeLedger = (ledger: ProofLedger): ProofLedger => ({
+  ...ledger,
+  proofs: ledger.proofs.map((proof: Proof) => ({ ...proof, kind: normalizeProofKind(proof.kind) })),
+})
 
 export interface RuntimeConfig extends EngineConfig {
   /** Needed for self-broadcast hint computation; published by the engine service. */
@@ -206,11 +244,11 @@ export function useProofs(): UseQueryResult<Sourced<ProofLedger>> {
     queryFn: async (): Promise<Sourced<ProofLedger>> => {
       try {
         const ledger = await api.proofs()
-        return { value: ledger, source: 'engine' }
+        return { value: normalizeLedger(ledger), source: 'engine' }
       } catch (error) {
         if (!shouldFallBack(error)) throw error
         return {
-          value: { proofs: STATIC_LEDGER },
+          value: normalizeLedger({ proofs: STATIC_LEDGER }),
           source: 'rpc',
           note: `Engine API offline — showing the frozen deployment ledger. ${describeError(error)}`,
         }
@@ -259,6 +297,75 @@ export function useOwnedPositions(account: Address | null): UseQueryResult<Addre
 
 /* --------------------------------------------------------------------- quotes */
 
+/**
+ * Engine quotes carry the post-state as a nested `trove` object (`coll`, `debt`, `icrWad`), while the
+ * terminal's quote contract wants those as top-level fields. Reading the engine payload as-is left
+ * `postIcrWad` undefined, and the next render threw "Cannot convert undefined to a BigInt" — so a
+ * successful quote was worse than a failed one. Normalise both shapes here, and compute the swap
+ * floor the same way the on-chain preview does.
+ */
+interface QuotePostState {
+  coll?: string
+  debt?: string
+  icrWad?: string
+  redemptionBufferMusd?: string
+}
+
+type WireQuote<T> = Partial<T> & {
+  trove?: QuotePostState | null
+  // The engine publishes its fee rates even though the terminal's wire contract omits them.
+  pylonFeeBps?: number
+  flashFeeBps?: number
+}
+
+const SWAP_SLIPPAGE_BPS = 50n
+
+const normalizeLoopQuote = (
+  wire: WireQuote<LoopQuoteWire>,
+  collAdd: bigint,
+  trove: { coll: bigint; debt: bigint } | null,
+): LoopQuote => {
+  const swapIn = BigInt(wire.swapIn ?? '0')
+  return {
+    collAdd: wire.collAdd ?? collAdd.toString(),
+    debtDelta: wire.debtDelta ?? '0',
+    pylonFee: wire.pylonFee ?? '0',
+    flashFee: wire.flashFee ?? '0',
+    swapIn: swapIn.toString(),
+    btcOut: wire.btcOut ?? collAdd.toString(),
+    musdBorrowed: wire.musdBorrowed ?? wire.debtDelta ?? '0',
+    borrowingFee: wire.borrowingFee ?? '0',
+    postColl:
+      wire.postColl ??
+      wire.trove?.coll ??
+      (trove ? (trove.coll + collAdd).toString() : collAdd.toString()),
+    postDebt:
+      wire.postDebt ??
+      wire.trove?.debt ??
+      (trove
+        ? (trove.debt + BigInt(wire.debtDelta ?? '0') + BigInt(wire.borrowingFee ?? '0')).toString()
+        : '0'),
+    postIcrWad: wire.postIcrWad ?? wire.trove?.icrWad ?? '0',
+    minMusdOut: wire.minMusdOut ?? (swapIn - (swapIn * SWAP_SLIPPAGE_BPS) / 10_000n).toString(),
+    source: 'engine',
+    pylonFeeBps: wire.pylonFeeBps,
+    flashFeeBps: wire.flashFeeBps,
+  }
+}
+
+const normalizeUnwindQuote = (wire: WireQuote<UnwindQuoteWire>): UnwindQuote => ({
+  repay: wire.repay ?? '0',
+  musdNeeded: wire.musdNeeded ?? '0',
+  btcInNeeded: wire.btcInNeeded ?? '0',
+  suggestedCollOut: wire.suggestedCollOut ?? '0',
+  postColl: wire.postColl ?? wire.trove?.coll ?? '0',
+  postDebt: wire.postDebt ?? wire.trove?.debt ?? '0',
+  postIcrWad: wire.postIcrWad ?? wire.trove?.icrWad ?? '0',
+  redemptionBufferAfterMusd:
+    wire.redemptionBufferAfterMusd ?? wire.trove?.redemptionBufferMusd ?? '0',
+  source: 'engine',
+})
+
 export function useLoopQuote(
   collAdd: bigint | null,
   trove: { coll: bigint; debt: bigint } | null,
@@ -272,8 +379,8 @@ export function useLoopQuote(
       if (collAdd === null || collAdd <= 0n) return null
       try {
         // `owner` makes the engine compute post-state for the real trove rather than generically.
-        const quote: LoopQuoteWire = await api.loopQuote(collAdd.toString(), owner ?? undefined)
-        return { ...quote, source: 'engine' as const }
+        const quote = (await api.loopQuote(collAdd.toString(), owner ?? undefined)) as WireQuote<LoopQuoteWire>
+        return normalizeLoopQuote(quote, collAdd, trove)
       } catch (error) {
         if (!shouldFallBack(error)) throw error
         const [price, flash] = await Promise.all([readBtcPrice(), readFlashMusdReserve()])
@@ -295,8 +402,8 @@ export function useUnwindQuote(
     queryFn: async (): Promise<UnwindQuote | null> => {
       if (!address || repay === null || repay <= 0n) return null
       try {
-        const quote = await api.unwindQuote(address, repay.toString())
-        return { ...quote, source: 'engine' as const }
+        const quote = (await api.unwindQuote(address, repay.toString())) as WireQuote<UnwindQuoteWire>
+        return normalizeUnwindQuote(quote)
       } catch (error) {
         if (!shouldFallBack(error)) throw error
         if (!trove) throw error

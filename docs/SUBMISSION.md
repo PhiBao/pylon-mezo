@@ -130,8 +130,8 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
   [explorer.mezo.org](https://explorer.mezo.org)
 * Engine service (radar solver, keeper, x402): `cd server && cargo run --release -- serve` — the API the
   hosted terminal uses when it is reachable; `server/.env.mainnet.example` is the mainnet variant
-* Product deck: **`docs/deck/pylon-deck.pdf`** (10 slides) · deck copy: `docs/PITCH.md` · 2-minute pitch video: `docs/DEMO_SCRIPT.md` (script and transaction
-  index) · diagram set: `docs/diagrams/01-atomic-paths.png`, `02-redemption-queue.png`,
+* Product deck: **`docs/deck/pylon-deck.pdf`** (10 slides) · deck copy: `docs/PITCH.md` · 2-minute pitch video: **`docs/video/pylon-demo.mp4`** (1:57, narrated, subtitles +
+  sidecar `.srt`); the script and transaction index stay in `docs/DEMO_SCRIPT.md` · diagram set: `docs/diagrams/01-atomic-paths.png`, `02-redemption-queue.png`,
   `03-system-map.png`
 * Mainnet readiness and the cost ladder: `docs/MAINNET-READINESS.md` · deploy and escape procedures:
   `docs/MAINNET-RUNBOOK.md`

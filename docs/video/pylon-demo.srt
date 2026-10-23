@@ -1,0 +1,89 @@
+1
+00:00:00,100 --> 00:00:03,422
+Mezo gives anyone a Bitcoin-backed loan.
+
+2
+00:00:03,371 --> 00:00:09,061
+Pylon makes that loan something you can steer: leverage it, deleverage
+it, or defend it.
+
+3
+00:00:09,061 --> 00:00:11,458
+One transaction each.
+
+4
+00:00:12,070 --> 00:00:20,496
+Every Mezo trove sits in one redemption queue: four hundred and
+twenty-nine million MUSD deep, across two hundred and ninety-six
+
+5
+00:00:20,445 --> 00:00:26,917
+Redemptions start at the lowest ratio above one hundred and ten
+percent, with no liquidation warning.
+
+6
+00:00:26,917 --> 00:00:30,862
+Repaying needs MUSD a borrower may not have.
+
+7
+00:00:31,480 --> 00:00:33,591
+Paste any trove.
+
+8
+00:00:33,541 --> 00:00:43,332
+Pylon reads it live: zero point zero four five seven BTC against two
+thousand and fifty-one MUSD of debt, at one hundred and eighty-one
+
+9
+00:00:43,332 --> 00:00:46,158
+No migration, no custody.
+
+10
+00:00:46,158 --> 00:00:50,103
+The owner authorises every action with one signature.
+
+11
+00:00:50,720 --> 00:00:59,446
+A flash loop borrows MUSD, swaps it to BTC, posts that BTC as
+collateral, and repays the flash loan in the same transaction.
+
+12
+00:00:59,396 --> 00:01:08,080
+Pylon sizes it against the one hundred and fifty percent collateral
+floor, then prices every leg and the exact debt delta the signature
+
+13
+00:01:09,079 --> 00:01:18,990
+The shield reserve is the other half: one thousand one hundred and
+seven MUSD of pooled capital, lent only to a registered position, and
+
+14
+00:01:18,939 --> 00:01:22,990
+The claim blocks collateral release until the loan is settled.
+
+15
+00:01:23,590 --> 00:01:25,545
+And it has run.
+
+16
+00:01:25,495 --> 00:01:38,138
+Fourteen explorer-linked transactions: reserve deposits, loops, an
+unwind, a full exit, and an autonomous keeper that defended a shielded
+
+17
+00:01:38,138 --> 00:01:43,503
+The audited generation is live on mainnet too, funded with real MUSD.
+
+18
+00:01:44,100 --> 00:01:45,690
+Pylon.
+
+19
+00:01:45,640 --> 00:01:49,690
+Non-custodial leverage and defence for Mezo troves.
+
+20
+00:01:49,690 --> 00:01:56,695
+Forty-three contract tests, a twelve-lens security review, a live
+terminal, and a public repository.
+

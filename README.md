@@ -392,6 +392,9 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
   the terminal stays complete without the engine — reads go straight to Mezo RPC and execution is
   signed in the user's wallet.
 * **Network:** Mezo Testnet, chain ID `31611`, explorer <https://explorer.test.mezo.org>.
+* **Rendered walkthrough (1:57):** `docs/video/pylon-demo.mp4` — narrated, 1920×1080, subtitles burned
+  in, sidecar `docs/video/pylon-demo.srt`. Recorded against the live terminal with the engine
+  connected; scene-by-scene notes and the re-render source are in `docs/video/README.md`.
 
 ### What a judge should try first
 

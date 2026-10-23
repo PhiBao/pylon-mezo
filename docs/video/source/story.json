@@ -1,0 +1,221 @@
+{
+  "voice": "en-US-GuyNeural",
+  "segments": [
+    {
+      "id": "s1_hook",
+      "text": "Mezo gives anyone a Bitcoin-backed loan. Pylon makes that loan something you can steer: leverage it, deleverage it, or defend it. One transaction each.",
+      "scene": {
+        "kind": "card",
+        "template": "title-left",
+        "vars": {
+          "kicker": "MEZO BUILDATHON &middot; TRACK 1 &mdash; DEFI"
+        }
+      }
+    },
+    {
+      "id": "s2_queue",
+      "text": "Every Mezo trove sits in one redemption queue: four hundred and twenty-nine million MUSD deep, across two hundred and ninety-six troves. Redemptions start at the lowest ratio above one hundred and ten percent, with no liquidation warning. Repaying needs MUSD a borrower may not have.",
+      "scene": {
+        "kind": "page",
+        "src": "https://pylon-mezo.vercel.app/",
+        "zoom": 1.2,
+        "wait_for": [
+          "text=Redemption radar"
+        ],
+        "settle": 2.5,
+        "actions": [
+          {
+            "action": "hover",
+            "sel": "svg[role=\"img\"]",
+            "settle": 0,
+            "glide": 1.0,
+            "after": 2.8
+          },
+          {
+            "action": "scrollTo",
+            "sel": "text=0xda047",
+            "dur": 1.2,
+            "at": 0.35,
+            "after": 2.4
+          },
+          {
+            "action": "scrollTo",
+            "sel": "text=ICR distribution",
+            "dur": 1.3,
+            "at": 0.5,
+            "after": 3.0
+          }
+        ]
+      }
+    },
+    {
+      "id": "s3_trove",
+      "text": "Paste any trove. Pylon reads it live: zero point zero four five seven BTC against two thousand and fifty-one MUSD of debt, at one hundred and eighty-one point seven percent. No migration, no custody. The owner authorises every action with one signature.",
+      "scene": {
+        "kind": "page",
+        "src": "https://pylon-mezo.vercel.app/",
+        "zoom": 1.2,
+        "wait_for": [
+          "text=Position architect"
+        ],
+        "settle": 1.0,
+        "actions": [
+          {
+            "action": "click",
+            "sel": "input[aria-label=\"Trove owner address\"]",
+            "after": 0.5
+          },
+          {
+            "action": "type",
+            "sel": "input[aria-label=\"Trove owner address\"]",
+            "text": "0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326",
+            "cps": 26,
+            "after": 0.8,
+            "wait_for": [
+              "text=Trove now"
+            ],
+            "wait_timeout": 30000
+          },
+          {
+            "action": "scrollTo",
+            "sel": "text=Trove now",
+            "dur": 1.0,
+            "at": 0.55,
+            "after": 2.2
+          }
+        ]
+      }
+    },
+    {
+      "id": "s4_loop",
+      "text": "A flash loop borrows MUSD, swaps it to BTC, posts that BTC as collateral, and repays the flash loan in the same transaction. Pylon sizes it against the one hundred and fifty percent collateral floor, then prices every leg and the exact debt delta the signature authorises.",
+      "scene": {
+        "kind": "page",
+        "src": "https://pylon-mezo.vercel.app/",
+        "zoom": 1.2,
+        "wait_for": [
+          "text=Position architect"
+        ],
+        "settle": 1.2,
+        "actions": [
+          {
+            "action": "type",
+            "sel": "input[aria-label=\"Trove owner address\"]",
+            "text": "0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326",
+            "cps": 90,
+            "after": 0.4,
+            "wait_for": [
+              "text=Trove now"
+            ],
+            "wait_timeout": 30000
+          },
+          {
+            "action": "click",
+            "sel": "input[placeholder=\"0.00\"]",
+            "after": 0.4
+          },
+          {
+            "action": "type",
+            "sel": "input[placeholder=\"0.00\"]",
+            "text": "0.004",
+            "cps": 8,
+            "after": 4.5
+          },
+          {
+            "action": "scrollTo",
+            "sel": "text=Atomic execution x-ray",
+            "dur": 1.1,
+            "at": 0.08,
+            "after": 1.0
+          },
+          {
+            "action": "hover",
+            "sel": "text=Repay flash",
+            "settle": 0,
+            "glide": 0.8,
+            "after": 1.4
+          }
+        ]
+      }
+    },
+    {
+      "id": "s5_shield",
+      "text": "The shield reserve is the other half: one thousand one hundred and seven MUSD of pooled capital, lent only to a registered position, and only to repay its debt. The claim blocks collateral release until the loan is settled.",
+      "scene": {
+        "kind": "page",
+        "src": "https://pylon-mezo.vercel.app/reserve",
+        "zoom": 1.2,
+        "wait_for": [
+          "text=Shield reserve",
+          "text=armed"
+        ],
+        "settle": 1.5,
+        "actions": [
+          {
+            "action": "scrollTo",
+            "sel": "text=Outstanding position loans",
+            "dur": 1.0,
+            "at": 0.45,
+            "after": 1.8
+          },
+          {
+            "action": "hover",
+            "sel": "table.ledger tbody tr",
+            "settle": 0,
+            "glide": 0.8,
+            "after": 2.2
+          },
+          {
+            "action": "scrollTo",
+            "sel": "text=What the reserve can and cannot do",
+            "dur": 1.2,
+            "at": 0.2,
+            "after": 1.2
+          }
+        ]
+      }
+    },
+    {
+      "id": "s6_proof",
+      "text": "And it has run. Fourteen explorer-linked transactions: reserve deposits, loops, an unwind, a full exit, and an autonomous keeper that defended a shielded position from one hundred and seventy-two back to one hundred and eighty-one percent. The audited generation is live on mainnet too, funded with real MUSD.",
+      "scene": {
+        "kind": "page",
+        "src": "https://pylon-mezo.vercel.app/proofs",
+        "zoom": 1.2,
+        "wait_for": [
+          "text=Proof ledger",
+          "text=keeper defence",
+          "text=ENGINE API"
+        ],
+        "settle": 1.5,
+        "actions": [
+          {
+            "action": "hover",
+            "sel": "text=keeper defence",
+            "settle": 0,
+            "glide": 0.9,
+            "after": 3.6
+          },
+          {
+            "action": "scrollTo",
+            "y": 0.22,
+            "dur": 1.2,
+            "after": 3.2
+          }
+        ]
+      }
+    },
+    {
+      "id": "s7_close",
+      "text": "Pylon. Non-custodial leverage and defence for Mezo troves. Forty-three contract tests, a twelve-lens security review, a live terminal, and a public repository.",
+      "scene": {
+        "kind": "card",
+        "template": "close-left",
+        "vars": {
+          "tagline": "A Bitcoin loan should be a position you can steer, not a contract you obey.",
+          "headline": "<b>Loop, unwind, exit, shield.</b><br><i>One transaction each, on the trove you already own.</i>"
+        }
+      }
+    }
+  ]
+}

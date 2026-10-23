@@ -1,0 +1,40 @@
+{
+  "name": "pylon",
+  "output": "out/pylon.mp4",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "voice": "en-US-GuyNeural",
+  "rate": "-4%",
+  "volume": "+0%",
+  "pad": 0.45,
+  "trim": 0.6,
+  "crf": 20,
+  "preset": "medium",
+  "burn_subtitles": true,
+  "loudness": "I=-16:TP=-1.5:LRA=11",
+  "subtitle_style": "FontName=DejaVu Sans,FontSize=30,PrimaryColour=&HFFFFFF,OutlineColour=&H80000000,BorderStyle=1,Outline=2,Shadow=1,MarginV=46,PlayResX=1920,PlayResY=1080",
+  "theme": {
+    "bg": "#0a0b0d",
+    "accent1": "#f7931a",
+    "accent2": "#34d399",
+    "accent3": "#6ee7b7",
+    "ink": "#e8eaed",
+    "muted": "#9aa1ac",
+    "faint": "#6b7280",
+    "hi": "#f7931a",
+    "hi2": "#34d399",
+    "subc": "#34d399",
+    "shade": "rgba(0,0,0,.35)"
+  },
+  "branding": {
+    "name": "PYLON",
+    "tagline": "Flash leverage and redemption defence for Mezo troves",
+    "sub": "Loop, unwind, exit or shield your own native trove in one transaction, authorised by one EIP-712 signature. No custody. No migration.",
+    "note": "Built on BorrowerOperationsSignatures, Tigris flash liquidity and the Mezo BTC ledger.",
+    "meta": "MEZO TESTNET 31611 &middot; MAINNET 31612",
+    "headline": "<b>Loop, unwind, exit, shield.</b><br><i>One transaction each, on the trove you already own.</i>",
+    "links": "pylon-mezo.vercel.app &nbsp;&middot;&nbsp; github.com/PhiBao/pylon-mezo",
+    "footnote": "43 contract tests &nbsp;&middot;&nbsp; 12-lens security review &nbsp;&middot;&nbsp; live on testnet and mainnet"
+  }
+}
