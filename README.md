@@ -92,7 +92,7 @@ atomic block, with the user's signature as the only authority.
 
 ### Primary workflow
 
-1. **Look at the radar.** The terminal opens on the live `SortedTroves` queue: every one of the 245
+1. **Look at the radar.** The terminal opens on the live `SortedTroves` queue: every one of the ~294
    troves, ordered by nominal collateral ratio, with the MUSD that must be redeemed before the queue
    reaches each one. The vertical axis is *survivable BTC drawdown* (`1 − MCR/ICR`) rather than ICR,
    because that is the quantity a borrower actually manages: 111% and 128% are a rounding error apart on
@@ -179,7 +179,7 @@ where lending MUSD to defend someone is a yield strategy with an enforceable cla
 
   | Criterion (weight) | Evidence in this submission |
   | --- | --- |
-  | **Mezo Integration (30%)** | Nine live Mezo/Tigris contracts orchestrated per transaction; both MUSD and BTC legs; `SortedTroves` indexed in full (245 troves) every refresh; signatures verified by Mezo's own helper; MUSD borrowed and repaid, never wrapped. |
+  | **Mezo Integration (30%)** | Nine live Mezo/Tigris contracts on testnet orchestrated per transaction, plus the audited generation on mainnet; both MUSD and BTC legs; `SortedTroves` indexed in full (~294 troves) every refresh; signatures verified by Mezo's own helper; MUSD borrowed and repaid, never wrapped. |
   | **Product & Business Viability (30%)** | Three operations the Mezo app cannot do, aimed at its existing borrower base; a shield pool with real fee revenue (5.18 MUSD earned from 1,000 MUSD seeded) and an enforceable claim; distribution inside the terminal that borrowers already need. |
   | **Technical Implementation (20%)** | 19 Foundry tests over a faithful Mezo/Tigris mock harness, 6 Rust tests whose vectors are cross-checked against `cast`, real deployments, and the §5 engineering log. |
   | **User Experience (10%)** | Redemption radar and atomic path X-Ray; semantic colour; monospace ledger density; loading/empty/error states in every panel; reduced-motion support. |
@@ -191,7 +191,7 @@ where lending MUSD to defend someone is a yield strategy with an enforceable cla
 
 ### System overview
 
-<img src="docs/diagrams/03-system-map.svg" alt="Pylon system map: wallets, terminal, Rust service, and live Mezo Testnet contracts with trust boundaries" width="100%">
+<img src="docs/diagrams/03-system-map.png" alt="Pylon system map: wallets, terminal, Rust service, and live Mezo Testnet contracts with trust boundaries" width="100%">
 
 * **`contracts/` — Solidity 0.8.24 + Foundry.** `PylonFlashEngine` (atomic entrypoints, flash
   accounting, fee routing, post-op guards), `PylonReserve` (shield pool: shares, caps, defence loans),
@@ -204,7 +204,7 @@ where lending MUSD to defend someone is a yield strategy with an enforceable cla
 
 ### The three atomic paths
 
-<img src="docs/diagrams/01-atomic-paths.svg" alt="Loop, Unwind and Exit as three numbered atomic paths through one machine" width="100%">
+<img src="docs/diagrams/01-atomic-paths.png" alt="Loop, Unwind and Exit as three numbered atomic paths through one machine" width="100%">
 
 **Loop** (signature path): the user signs `AdjustTrove(collWithdrawal = 0, debtChange = D,
 isDebtIncrease = true, assetAmount = X, borrower, recipient = engine)`. The engine flashes `D` MUSD
@@ -257,7 +257,7 @@ shows are by construction the numbers the contracts enforce.
    refunded. The engine now reports which leg failed (`StageFailed(stage, gasLeft, reason)`) instead of
    a bare panic — added in v3 and kept.
 4. **On-chain hint resolution is expensive.** `HintHelpers.getApproxHint(nicr, 40, seed)` measured at
-   ~4.75M gas on a 245-trove book. v4 passes solver-computed hints into positions, which validate them
+   ~4.75M gas on a book of a few hundred troves. v4 passes solver-computed hints into positions, which validate them
    in-contract and only fall back (12 trials) when a hint is stale.
 5. **The minimum-debt floor bounds the shield.** Mezo requires 1,800 MUSD of net debt. A shield target
    ICR is only reachable if `collateral × price / target ≥ 2,000`. The live position hit exactly this:
@@ -383,14 +383,19 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
 
 ### What a judge should try first
 
-1. **Open the terminal without connecting anything.** The redemption radar loads live: 245 troves,
-   ~429M MUSD of queue depth ahead of the tail, the nearest trove at 111.4% ICR, and the MUSD buffer
+0. **No trove yet?** Connect a wallet and the architect offers to open one in two transactions — a
+   Pylon position, then its Mezo trove — with the ICR previewed before signing. The faucet link in the
+   card sends testnet BTC to that wallet. This is the path a new user takes, and it happens inside the
+   terminal.
+1. **Open the terminal without connecting anything.** The redemption radar loads live: ~294 troves,
+   ~429M MUSD of queue depth ahead of the tail, the nearest trove at ~110.5% ICR, and the MUSD buffer
    needed before the queue reaches each one. Click any row to inspect that trove.
 2. **Read the tail table.** Notice that ranks 1–9 sit between 111% and 128%: those are the troves
    redemptions will touch next, at collateral ratios no liquidation alarm would flag.
-3. **Open `Reserve`.** 1,005.18 MUSD of assets, share price 1.00518 (the pool has already earned 5.18
-   MUSD of flash fees), 543.94 MUSD lent to a single live position at 179.9% ICR with its shield
-   `armed`, and the loan's claim enforced in code.
+3. **Open `Reserve`.** 1,105.19 MUSD of capital in the audited generation at a 1.000000 share price.
+   The defence that earned the pool 5.18 MUSD of fees — 543.94 MUSD lent at a 179.9% ICR, called by a
+   third party — is on the previous generation and recorded in `Proofs`; its claim was settled during
+   the migration. The reserve is a lender with caps, not a vault: a depositor can always withdraw.
 4. **Open `Proofs`.** Every operation the product claims, with its transaction hash, the event to look
    for, and a "how to verify a row" panel.
 5. **Connect a wallet with a trove** (or paste a trove address into the architect) and drag the loop
@@ -399,7 +404,7 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
 
 ### Demo flow for a recording (≈2 minutes)
 
-1. Radar: "`SortedTroves`, all 245 troves, ranked by who gets redeemed against first. This borrower sits
+1. Radar: "`SortedTroves`, all ~294 troves, ranked by who gets redeemed against first. This borrower sits
    at 111% and there is nothing between them and a redemption."
 2. Architect → `Loop`: 0.005 BTC, one signature → show the live transaction
    [`0x7933c853…`](https://explorer.test.mezo.org/tx/0x7933c8531f1c368da18ec70496e3d5eb5d6167f2b0160a63db224d21751e6430)
@@ -491,21 +496,25 @@ written up as commands in **[`docs/MAINNET-RUNBOOK.md`](docs/MAINNET-RUNBOOK.md)
 | --- | --- |
 | Flash Loop, Flash Unwind, Flash Exit on a native Mezo trove | **Real, live, mined.** Three transactions above, against live pools. |
 | EIP-712 authorisation | **Real.** Verified by Mezo's deployed `BorrowerOperationsSignatures`; the engine's digest construction is unit-tested against an independent `cast`-derived vector. |
-| Shield reserve (shares, caps, fee revenue) | **Real.** v1 earned 5.18 MUSD of flash fees on 1,000 MUSD of capital and lent 543.94 MUSD to one position; that capital then migrated to the audited reserve (1,005.185 + 100 MUSD of deposits). |
+| Shield reserve (shares, caps, fee revenue) | **Real.** v1 earned 5.18 MUSD of flash fees on 1,000 MUSD of capital and lent 543.94 MUSD to one position; the capital then migrated to the audited reserve, which holds 1,105.19 MUSD at a 1.000000 share price. |
 | Deposit pricing after the audit | **Real, measured on chain.** The second depositor's 100 MUSD is worth exactly 100 MUSD (`convertToAssets(shares) = 1e20`); the audited code returned ~50. |
 | Shield defence | **Real.** Permissionless call by a third party on the v1 generation: ICR 142% → 180%. The audited generation re-arms the same policy with a defence fee, a concentration cap and Mezo's debt floor respected. |
 | Claim lifecycle | **Real.** A position settled its 543.943 MUSD claim, and the same position's collateral withdrawal reverted with `ReserveDebtOutstanding` (`0xa06fe405`) while the claim stood. |
 | Claim enforcement (`ReserveDebtOutstanding`) | **Real.** A collateral withdrawal from the owner while the loan is outstanding reverts. |
 | Redemption radar and quotes | **Real chain reads.** Full `SortedTroves` index, batched JSON-RPC; previews executed on the deployed engine. |
 | Position flash loop (engine → position → Mezo) | **Implemented, unit-tested against a faithful harness, and still not proven live — with the reason now known.** The audit found the two code defects that broke it (a BTC balance delta that double-counted `msg.value`, and an MUSD delta that underflowed on every repayment); both are fixed and covered by `test_position_flashLegsExecute`, whose harness now models Mezo's unified native/ERC-20 BTC ledger. A live `loopPosition` on the audited engine still reverts, and this testnet's RPC returns no revert data for contract calls (an expired-deadline control call returns nothing either) while reporting gas as a fixed fraction of the submitted limit, so the residual cause cannot be isolated from here. The leading hypothesis is the on-chain `SortedTroves` hint walk against 245+ troves exceeding what the RPC will relay — the same cost that makes a live collateral withdrawal consume ~3M gas. It is an open item, not a claim. |
-| `x402` endpoint | **Real 402 challenge + on-chain settlement verification.** The MUSD transfer is verified by the service against a mined receipt and transfer log; the facilitator path is implemented but optional. |
-| Native BTC-wallet trove opening through the UI | **Not implemented.** Opening a trove is available on `mezo.org`; Pylon operates on troves that exist. |
+| `x402` endpoint | **Real 402 challenge + on-chain settlement verification**, on both chains. A real 0.001 MUSD payment settled a paid report on a mainnet trove; the same proof was then refused as a replay. The facilitator path is off by default and must settle. |
+| Native BTC-wallet trove opening through the UI | **Implemented.** The architect's first-run card creates the Pylon position and opens its trove in two wallet transactions, with Mezo's minimums and the live ICR enforced before signing. |
+| Execute relay (`POST /api/v1/execute/*`) | **Implemented and guarded.** The user signs, the operator pays gas, the engine verifies on-chain. Testnet only (`ALLOW_RELAY=1`), rate-limited, and off by default on mainnet. |
+| Mezo mainnet deployment | **Real.** Audited generation deployed, funded with real MUSD, a second depositor priced exactly right, a machine payment settled, and the pool migrated to a fresh generation with the capital intact. |
 
 ### What is *not* built
 
-No mainnet deployment, no audit, no token, no chain of our own, no mobile app, no custody, no
-"AI agent" that trades on your behalf. The keeper defends only positions whose owners armed a policy,
-and only upward.
+No token, no chain of our own, no mobile app, no custody, and no "AI agent" that trades on your behalf —
+the keeper defends only positions whose owners armed a policy, and only upward. The position-mode flash
+loop is fixed and unit-tested but has not executed on chain (see the row above), there is no external
+audit yet, no mainnet trove because Mezo's 2,000 MUSD minimum debt is out of this budget, and the
+contracts have no pause.
 
 ---
 
@@ -545,6 +554,9 @@ Highlights worth knowing before you read the code:
   payload must match the operation that started it.
 * Operator transactions are serialised, so a keeper defence and a manual operation cannot collide on a
   nonce and silently replace one another.
+* The execute relay pays gas for a signature the user produced, so it can only do what that signature
+  authorises — but it is still a faucet for anyone with a valid signature on their own trove. It is
+  disabled by default (`ALLOW_RELAY`), enabled deliberately on testnet, and rate-limited separately.
 
 ### Trust model
 
@@ -636,7 +648,7 @@ contracts/          Solidity + Foundry (engine, reserve, position, tests, deploy
   deployments/      Address book per chain, including the lineage of superseded engines
 server/             Rust engine service (radar, solver, keeper, x402, proof ledger, CLI)
 web/                Next.js terminal (static export, wagmi/viem, RPC fallback)
-docs/diagrams/      Three architecture diagrams (SVG) + regeneration notes
+docs/diagrams/      Three architecture diagrams (PNG, 3200px wide) + their HTML sources
 ```
 
 ## 12. License

@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pylon — the redemption queue and the shield</title>
+<style>
+  @font-face { font-family: 'Inter'; src: url('../../../web/src/fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: 'Space Grotesk'; src: url('../../../web/src/fonts/space-grotesk.woff2') format('woff2'); font-weight: 300 700; }
+  @font-face { font-family: 'JetBrains Mono'; src: url('../../../web/src/fonts/jetbrains-mono.woff2') format('woff2'); font-weight: 100 800; }
+  html, body { margin: 0; background: transparent; }
+  .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 15px; letter-spacing: 2.4px; fill: #6b7280; }
+  .title { font-family: 'Space Grotesk', sans-serif; font-size: 46px; font-weight: 600; letter-spacing: -0.8px; fill: #e8eaed; }
+  .lede { font-family: 'Inter', sans-serif; font-size: 19px; fill: #9aa1ac; }
+  .h { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 600; fill: #e8eaed; }
+  .body { font-family: 'Inter', sans-serif; font-size: 17px; fill: #9aa1ac; }
+  .body-ink { font-family: 'Inter', sans-serif; font-size: 17px; fill: #e8eaed; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 14px; fill: #6b7280; }
+  .mono-amber { font-family: 'JetBrains Mono', monospace; font-size: 15px; fill: #f7931a; }
+  .mono-em { font-family: 'JetBrains Mono', monospace; font-size: 15px; fill: #10b981; }
+  .big { font-family: 'Space Grotesk', sans-serif; font-size: 40px; font-weight: 600; fill: #e8eaed; }
+  .tag { font-family: 'JetBrains Mono', monospace; font-size: 13px; letter-spacing: 1.6px; fill: #9aa1ac; }
+</style>
+</head>
+<body>
+<svg viewBox="0 0 1600 900" width="1600" height="900" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="queue-title queue-desc">
+  <title id="queue-title">The redemption queue and the shield</title>
+  <desc id="queue-desc">Troves ordered by collateral ratio: redemptions consume the lowest first, and a reserve defence moves a trove out of reach.</desc>
+
+  <defs>
+    <marker id="q-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3a4149" />
+    </marker>
+    <marker id="q-arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f7931a" />
+    </marker>
+    <marker id="q-arrow-em" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981" />
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="900" rx="10" fill="#0a0b0d" />
+  <rect x="0.5" y="0.5" width="1599" height="899" rx="10" fill="none" stroke="#1f232b" />
+
+  <text x="64" y="76" class="eyebrow">Pylon · the redemption queue</text>
+  <text x="64" y="136" class="title">Why 135% is not safe.</text>
+  <text x="64" y="176" class="lede">MUSD redemptions walk up from the <tspan class="body-ink">lowest</tspan> collateral ratio. A healthy-looking trove can lose its BTC without ever nearing liquidation.</text>
+
+  <!-- the queue axis -->
+  <line x1="120" y1="420" x2="1480" y2="420" stroke="#2a2f38" stroke-width="2" />
+  <path d="M 1480 420 L 1440 404 M 1480 420 L 1440 436" stroke="#2a2f38" stroke-width="2" fill="none" />
+
+  <!-- ticks: troves by ICR (decorative), the tail is consumed first -->
+  <g fill="#2a2f38">
+    <rect x="150" y="384" width="10" height="72" rx="3" />
+    <rect x="214" y="376" width="10" height="88" rx="3" />
+    <rect x="286" y="380" width="10" height="80" rx="3" />
+    <rect x="366" y="368" width="10" height="104" rx="3" />
+    <rect x="456" y="372" width="10" height="96" rx="3" />
+    <rect x="556" y="360" width="10" height="120" rx="3" />
+    <rect x="672" y="368" width="10" height="104" rx="3" />
+    <rect x="800" y="352" width="10" height="136" rx="3" />
+    <rect x="944" y="360" width="10" height="120" rx="3" />
+    <rect x="1100" y="344" width="10" height="152" rx="3" />
+    <rect x="1270" y="352" width="10" height="136" rx="3" />
+    <rect x="1420" y="340" width="10" height="160" rx="3" />
+  </g>
+
+  <!-- the risky band + the defended trove -->
+  <rect x="330" y="336" width="150" height="168" rx="6" fill="none" stroke="#f7931a" stroke-width="1.6" />
+  <text x="330" y="316" class="mono-amber">the band redemptions reach first</text>
+  <rect x="366" y="368" width="10" height="104" rx="3" fill="#f7931a" />
+  <text x="392" y="446" class="mono-amber">135%</text>
+
+  <!-- after the defence -->
+  <line x1="386" y1="560" x2="820" y2="560" stroke="#10b981" stroke-width="1.6" stroke-dasharray="6 5" fill="none" marker-end="url(#q-arrow-em)" />
+  <text x="386" y="592" class="mono-em">a defence repays debt → the trove moves right, out of reach</text>
+  <circle cx="820" cy="560" r="5" fill="#10b981" />
+  <text x="836" y="566" class="mono-em">170%</text>
+
+  <!-- axis labels -->
+  <text x="120" y="470" class="mono">110%·MCR</text>
+  <text x="860" y="470" class="mono">200%</text>
+  <text x="1380" y="470" class="mono">300%+</text>
+  <text x="120" y="530" class="body-ink">redeemed first</text>
+  <text x="1290" y="530" class="body-ink">redeemed last</text>
+
+  <!-- the two facts -->
+  <rect x="64" y="628" width="700" height="168" rx="8" fill="#101216" stroke="#2a2f38" />
+  <text x="96" y="672" class="tag">THE QUEUE TODAY</text>
+  <text x="96" y="722" class="big">429M MUSD</text>
+  <text x="96" y="754" class="body">of redemption depth, against a borrower base of 294 troves</text>
+  <text x="96" y="778" class="body">on testnet — deep queue, thin tooling.</text>
+
+  <rect x="800" y="628" width="736" height="168" rx="8" fill="#101216" stroke="#2a2f38" />
+  <text x="832" y="672" class="tag">THE SHIELD</text>
+  <text x="832" y="712" class="h">A reserve that can only repay debt.</text>
+  <text x="832" y="748" class="body">It lends to a defended position, and the claim blocks</text>
+  <text x="832" y="772" class="body">collateral release until the loan is settled.</text>
+</svg>
+</body>
+</html>

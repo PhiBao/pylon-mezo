@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pylon — system map</title>
+<style>
+  @font-face { font-family: 'Inter'; src: url('../../../web/src/fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: 'Space Grotesk'; src: url('../../../web/src/fonts/space-grotesk.woff2') format('woff2'); font-weight: 300 700; }
+  @font-face { font-family: 'JetBrains Mono'; src: url('../../../web/src/fonts/jetbrains-mono.woff2') format('woff2'); font-weight: 100 800; }
+  html, body { margin: 0; background: transparent; }
+  .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 15px; letter-spacing: 2.4px; fill: #6b7280; }
+  .title { font-family: 'Space Grotesk', sans-serif; font-size: 46px; font-weight: 600; letter-spacing: -0.8px; fill: #e8eaed; }
+  .lede { font-family: 'Inter', sans-serif; font-size: 19px; fill: #9aa1ac; }
+  .h { font-family: 'Space Grotesk', sans-serif; font-size: 23px; font-weight: 600; fill: #e8eaed; }
+  .body { font-family: 'Inter', sans-serif; font-size: 16px; fill: #9aa1ac; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 14px; fill: #6b7280; }
+  .mono-amber { font-family: 'JetBrains Mono', monospace; font-size: 14px; fill: #f7931a; }
+  .tag { font-family: 'JetBrains Mono', monospace; font-size: 13px; letter-spacing: 1.4px; fill: #9aa1ac; }
+</style>
+</head>
+<body>
+<svg viewBox="0 0 1600 900" width="1600" height="900" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="map-title map-desc">
+  <title id="map-title">Pylon on Mezo: what exists, what Pylon adds</title>
+  <desc id="map-desc">The user's wallet signs; the Pylon engine executes against Mezo core, two Tigris pools and a MUSD reserve; the trove never leaves the user's name.</desc>
+
+  <defs>
+    <marker id="m-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3a4149" />
+    </marker>
+    <marker id="m-arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f7931a" />
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="900" rx="10" fill="#0a0b0d" />
+  <rect x="0.5" y="0.5" width="1599" height="899" rx="10" fill="none" stroke="#1f232b" />
+
+  <text x="64" y="76" class="eyebrow">Pylon · system map</text>
+  <text x="64" y="136" class="title">Nothing of yours moves.</text>
+  <text x="64" y="176" class="lede">One signature authorises one transaction. The engine executes inside it; the trove stays in your name.</text>
+
+  <!-- trust boundary -->
+  <rect x="80" y="230" width="560" height="270" rx="10" fill="none" stroke="#2a2f38" stroke-dasharray="7 6" />
+  <text x="104" y="266" class="tag">YOUR KEYS · YOUR TROVE</text>
+
+  <!-- wallet -->
+  <rect x="112" y="292" width="232" height="164" rx="8" fill="#101216" stroke="#f7931a" stroke-width="1.4" />
+  <text x="136" y="332" class="h">Your wallet</text>
+  <text x="136" y="364" class="body">Signs EIP-712.</text>
+  <text x="136" y="388" class="body">Holds the BTC.</text>
+  <text x="136" y="424" class="mono-amber">the only key</text>
+
+  <!-- mezo trove -->
+  <rect x="384" y="292" width="232" height="164" rx="8" fill="#101216" stroke="#2a2f38" />
+  <text x="408" y="332" class="h">Your trove</text>
+  <text x="408" y="364" class="body">Collateral, debt,</text>
+  <text x="408" y="388" class="body">ICR — in Mezo.</text>
+  <text x="408" y="424" class="mono">never migrates</text>
+
+  <line x1="344" y1="374" x2="376" y2="374" stroke="#3a4149" stroke-width="1.6" marker-end="url(#m-arrow)" />
+  <line x1="344" y1="404" x2="376" y2="404" stroke="#3a4149" stroke-width="1.6" marker-end="url(#m-arrow)" />
+
+  <!-- engine -->
+  <rect x="700" y="292" width="256" height="164" rx="8" fill="#101216" stroke="#f7931a" stroke-width="1.4" />
+  <text x="724" y="332" class="h">Pylon engine</text>
+  <text x="724" y="364" class="body">One atomic path.</text>
+  <text x="724" y="388" class="body">Reverts on any miss.</text>
+  <text x="724" y="424" class="mono-amber">stateless between tx</text>
+  <line x1="620" y1="374" x2="692" y2="374" stroke="#f7931a" stroke-width="1.6" marker-end="url(#m-arrow-amber)" />
+
+  <!-- venues -->
+  <rect x="1010" y="230" width="256" height="118" rx="8" fill="#101216" stroke="#2a2f38" />
+  <text x="1034" y="266" class="h">Flash venue</text>
+  <text x="1034" y="296" class="body">A stable MUSD pool.</text>
+  <text x="1034" y="322" class="mono">7.7M MUSD depth · 2 bps</text>
+
+  <rect x="1010" y="366" width="256" height="118" rx="8" fill="#101216" stroke="#2a2f38" />
+  <text x="1034" y="402" class="h">Swap venue</text>
+  <text x="1034" y="432" class="body">MUSD/BTC, volatile.</text>
+  <text x="1034" y="458" class="mono">103M MUSD · 30 bps</text>
+
+  <line x1="964" y1="300" x2="1002" y2="300" stroke="#3a4149" stroke-width="1.6" marker-end="url(#m-arrow)" />
+  <line x1="964" y1="424" x2="1002" y2="424" stroke="#3a4149" stroke-width="1.6" marker-end="url(#m-arrow)" />
+
+  <!-- reserve + mezo core -->
+  <rect x="1010" y="520" width="256" height="128" rx="8" fill="#101216" stroke="#2a2f38" />
+  <text x="1034" y="556" class="h">MUSD reserve</text>
+  <text x="1034" y="586" class="body">The shield pool.</text>
+  <text x="1034" y="612" class="mono">lends only to repay debt</text>
+  <line x1="828" y1="464" x2="828" y2="560" stroke="#3a4149" stroke-width="1.6" marker-end="url(#m-arrow)" />
+  <line x1="828" y1="560" x2="1002" y2="560" stroke="#3a4149" stroke-width="1.6" marker-end="url(#m-arrow)" />
+  <text x="846" y="546" class="mono">defence</text>
+
+  <rect x="700" y="520" width="256" height="128" rx="8" fill="#101216" stroke="#2a2f38" />
+  <text x="724" y="556" class="h">Mezo core</text>
+  <text x="724" y="586" class="body">BorrowerOps · SortedTroves</text>
+  <text x="724" y="612" class="mono">the source of truth · 0.20% fee → reserve</text>
+  <line x1="828" y1="464" x2="828" y2="512" stroke="#3a4149" stroke-width="1.6" marker-end="url(#m-arrow)" />
+
+
+  <!-- footer -->
+  <line x1="64" y1="716" x2="1536" y2="716" stroke="#1f232b" />
+  <text x="64" y="756" class="mono">WHAT PYLON ADDS</text>
+  <text x="64" y="790" class="body">The three atomic paths, the EIP-712 authorisation flow, the shield reserve, and the x402 rail.</text>
+  <text x="64" y="820" class="body">What it does not touch: your keys, your collateral, or Mezo's accounting.</text>
+  <text x="64" y="866" class="mono">Mezo testnet 31611 · mainnet 31612 · 43 contract tests · 12-lens audit, 32 fixes shipped</text>
+</svg>
+</body>
+</html>

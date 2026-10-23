@@ -13,7 +13,7 @@ deployment is cited in the close and listed in the appendix; its addresses are i
 
 ## 0:00 – 0:15 · Hook
 
-**On screen:** the terminal, untouched. The radar loads with 245 troves.
+**On screen:** the terminal, untouched. The radar loads with ~294 troves.
 
 > "Mezo lets you borrow a dollar against your Bitcoin at one percent. That loan has three problems.
 > You can't lever it up without a dozen manual transactions. You can't deleverage it unless you already

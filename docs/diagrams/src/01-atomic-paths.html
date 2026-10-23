@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Pylon — three atomic paths</title>
+<style>
+  @font-face { font-family: 'Inter'; src: url('../../../web/src/fonts/inter.woff2') format('woff2'); font-weight: 100 900; }
+  @font-face { font-family: 'Space Grotesk'; src: url('../../../web/src/fonts/space-grotesk.woff2') format('woff2'); font-weight: 300 700; }
+  @font-face { font-family: 'JetBrains Mono'; src: url('../../../web/src/fonts/jetbrains-mono.woff2') format('woff2'); font-weight: 100 800; }
+  html, body { margin: 0; background: transparent; }
+  svg { display: block; }
+  .eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 15px; letter-spacing: 2.4px; fill: #6b7280; text-transform: uppercase; }
+  .title { font-family: 'Space Grotesk', sans-serif; font-size: 46px; font-weight: 600; letter-spacing: -0.8px; fill: #e8eaed; }
+  .lede { font-family: 'Inter', sans-serif; font-size: 19px; fill: #9aa1ac; }
+  .h { font-family: 'Space Grotesk', sans-serif; font-size: 24px; font-weight: 600; fill: #e8eaed; }
+  .body { font-family: 'Inter', sans-serif; font-size: 17px; fill: #9aa1ac; }
+  .body-ink { font-family: 'Inter', sans-serif; font-size: 17px; fill: #e8eaed; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 14px; fill: #6b7280; }
+  .mono-amber { font-family: 'JetBrains Mono', monospace; font-size: 15px; fill: #f7931a; }
+  .mono-em { font-family: 'JetBrains Mono', monospace; font-size: 15px; fill: #10b981; }
+  .tag { font-family: 'JetBrains Mono', monospace; font-size: 13px; letter-spacing: 1.6px; fill: #9aa1ac; }
+</style>
+</head>
+<body>
+<svg viewBox="0 0 1600 1000" width="1600" height="1000" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="paths-title paths-desc">
+  <title id="paths-title">Pylon's three atomic paths</title>
+  <desc id="paths-desc">A trove on the left; three single-transaction paths on the right that lever it up, repay it from its own collateral, or close it.</desc>
+
+  <defs>
+    <marker id="paths-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3a4149" />
+    </marker>
+    <marker id="paths-arrow-amber" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#f7931a" />
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="1000" rx="10" fill="#0a0b0d" />
+  <rect x="0.5" y="0.5" width="1599" height="999" rx="10" fill="none" stroke="#1f232b" />
+
+  <text x="64" y="76" class="eyebrow">Pylon · atomic paths</text>
+  <text x="64" y="136" class="title">One signature. One transaction.</text>
+  <text x="64" y="176" class="lede">Three ways to move an existing Mezo trove, funded by its own collateral through the pools you already trade on.</text>
+
+  <!-- your trove -->
+  <rect x="64" y="224" width="440" height="470" rx="8" fill="#101216" stroke="#2a2f38" />
+  <text x="96" y="272" class="tag">YOUR TROVE · ALREADY OPEN</text>
+  <text x="96" y="330" class="h">0.045 BTC</text>
+  <text x="96" y="360" class="body">collateral</text>
+  <text x="96" y="420" class="h">2,058 MUSD</text>
+  <text x="96" y="450" class="body">debt</text>
+  <text x="96" y="510" class="mono-em">ICR 180%</text>
+  <line x1="96" y1="546" x2="472" y2="546" stroke="#1f232b" />
+  <text x="96" y="588" class="body-ink">Pylon never holds it.</text>
+  <text x="96" y="618" class="body">The trove stays in your name; only your</text>
+  <text x="96" y="642" class="body">signature lets a path touch it.</text>
+
+  <!-- three lanes -->
+  <g>
+    <rect x="560" y="224" width="976" height="146" rx="8" fill="#101216" stroke="#2a2f38" />
+    <text x="592" y="270" class="h">Flash Loop</text>
+    <text x="592" y="300" class="body">Borrow, buy BTC, post it, repay the flash — out of the trove's new borrow.</text>
+    <text x="592" y="338" class="mono-amber">+0.005 BTC collateral · +394 MUSD debt · 0.79 MUSD fee</text>
+
+    <rect x="560" y="386" width="976" height="146" rx="8" fill="#101216" stroke="#2a2f38" />
+    <text x="592" y="432" class="h">Flash Unwind</text>
+    <text x="592" y="462" class="body">Repay debt out of the trove's own collateral, with zero MUSD in your wallet.</text>
+    <text x="592" y="500" class="mono-em">debt −300 MUSD · wallet MUSD 0</text>
+
+    <rect x="560" y="548" width="976" height="146" rx="8" fill="#101216" stroke="#2a2f38" />
+    <text x="592" y="594" class="h">Flash Exit</text>
+    <text x="592" y="624" class="body">Close the trove entirely, funded by itself, and take the rest as BTC.</text>
+    <text x="592" y="662" class="mono-em">trove closed · ~0.0218 BTC returned</text>
+  </g>
+
+  <!-- flow arrows from the trove into each lane -->
+  <path d="M 504 297 H 548" stroke="#3a4149" stroke-width="1.6" fill="none" marker-end="url(#paths-arrow)" />
+  <path d="M 504 459 H 548" stroke="#3a4149" stroke-width="1.6" fill="none" marker-end="url(#paths-arrow)" />
+  <path d="M 504 621 H 548" stroke="#3a4149" stroke-width="1.6" fill="none" marker-end="url(#paths-arrow)" />
+
+  <!-- footer -->
+  <line x1="64" y1="758" x2="1536" y2="758" stroke="#1f232b" />
+  <text x="64" y="800" class="mono">EVERY LEG IS ATOMIC</text>
+  <text x="64" y="836" class="body-ink">If a swap cannot deliver the collateral you signed for, the whole transaction reverts.</text>
+  <text x="64" y="866" class="body">The EIP-712 signature carries the exact collateral and debt deltas, so the engine cannot move more than you authorised.</text>
+
+  <rect x="64" y="900" width="14" height="14" rx="2" fill="#f7931a" />
+  <text x="90" y="913" class="mono">BTC leg</text>
+  <rect x="212" y="900" width="14" height="14" rx="2" fill="#3a4149" />
+  <text x="238" y="913" class="mono">MUSD leg</text>
+  <rect x="360" y="900" width="14" height="14" rx="2" fill="#10b981" />
+  <text x="386" y="913" class="mono">what you end up with</text>
+</svg>
+</body>
+</html>
