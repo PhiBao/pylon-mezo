@@ -33,8 +33,8 @@
     "sub": "Loop, unwind, exit or shield your own native trove in one transaction, authorised by one EIP-712 signature. No custody. No migration.",
     "note": "Built on BorrowerOperationsSignatures, Tigris flash liquidity and the Mezo BTC ledger.",
     "meta": "MEZO TESTNET 31611 &middot; MAINNET 31612",
-    "headline": "<b>Loop, unwind, exit, shield.</b><br><i>One transaction each, on the trove you already own.</i>",
+    "headline": "<b>Loop, unwind, exit, shield.</b><br><i>One transaction each \u2014 executed live.</i>",
     "links": "pylon-mezo.vercel.app &nbsp;&middot;&nbsp; github.com/PhiBao/pylon-mezo",
-    "footnote": "43 contract tests &nbsp;&middot;&nbsp; 12-lens security review &nbsp;&middot;&nbsp; live on testnet and mainnet"
+    "footnote": "43 contract tests &nbsp;&middot;&nbsp; 12-lens security review &nbsp;&middot;&nbsp; executed live on Mezo Testnet"
   }
 }

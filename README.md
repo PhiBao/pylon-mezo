@@ -399,9 +399,10 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
 * **No-extension demo:** the header's **Demo key** control accepts a private key at runtime and signs
   the same EIP-712 ballots locally, so a loop/unwind/exit can be executed without MetaMask or Rabby.
   The key is held in the tab's memory only (never storage) and is forgotten on reload.
-* **Rendered walkthrough (1:57):** `docs/video/pylon-demo.mp4` — narrated, 1920×1080, subtitles burned
+* **Rendered walkthrough (1:47):** `docs/video/pylon-demo.mp4` — narrated, 1920×1080, subtitles burned
   in, sidecar `docs/video/pylon-demo.srt`. Recorded against the live terminal with the engine
-  connected; scene-by-scene notes and the re-render source are in `docs/video/README.md`.
+  connected, and it contains a **real relayed execution** (`0xe198fb3b…b90861`). Scene-by-scene notes
+  and the re-render source are in `docs/video/README.md`.
 
 ### What a judge should try first
 
@@ -529,7 +530,7 @@ written up as commands in **[`docs/MAINNET-RUNBOOK.md`](docs/MAINNET-RUNBOOK.md)
 | `x402` endpoint | **Real 402 challenge + on-chain settlement verification**, on both chains. A real 0.001 MUSD payment settled a paid report on a mainnet trove; the same proof was then refused as a replay. The facilitator path is off by default and must settle. |
 | Native BTC-wallet trove opening through the UI | **Implemented.** The architect's first-run card creates the Pylon position and opens its trove in two wallet transactions, with Mezo's minimums and the live ICR enforced before signing. |
 | Execute relay (`POST /api/v1/execute/*`) | **Implemented and guarded.** The user signs, the operator pays gas, the engine verifies on-chain. Testnet only (`ALLOW_RELAY=1`), rate-limited, and off by default on mainnet. |
-| Hosted relay execution (demo signer) | **Real.** A 0.0005 BTC loop signed in the tab by the demo signer and relayed by the Fly engine: [`0xe198fb3b…`](https://explorer.test.mezo.org/tx/0xe198fb3b11160c2fd489c636da87e247d2d2c760d120c20fd54491a3c0b90861). The position moved to 0.0462 BTC / 2,090.85 MUSD / 180.4% ICR. Clip: `docs/video/pylon-execution.mp4`. |
+| Hosted relay execution (demo signer) | **Real.** A 0.0005 BTC loop signed in the tab by the demo signer and relayed by the Fly engine: [`0xe198fb3b…`](https://explorer.test.mezo.org/tx/0xe198fb3b11160c2fd489c636da87e247d2d2c760d120c20fd54491a3c0b90861). The position moved to 0.0462 BTC / 2,090.85 MUSD / 180.4% ICR — shown in the demo video. |
 | Hosted engine (Fly) + terminal (Vercel) | **Real, live.** `pylon-mezo-api.fly.dev` serves the radar, reserve, proofs, `x402` and the relay against chain 31611; `pylon-mezo.vercel.app` renders with the engine connected (`ENGINE API`), including the keeper-defence row in the live ledger. |
 | Mezo mainnet deployment | **Real.** Audited generation deployed, funded with real MUSD, a second depositor priced exactly right, a machine payment settled, and the pool migrated to a fresh generation with the capital intact. |
 
