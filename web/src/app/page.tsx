@@ -1,6 +1,5 @@
 'use client'
 
-import { useAccount } from 'wagmi'
 import { useHydrated } from '@/hooks'
 import { PositionArchitect } from '@/components/architect/PositionArchitect'
 import { ProofLedger } from '@/components/panels/ProofLedger'
@@ -8,8 +7,10 @@ import { ReservePanel } from '@/components/panels/ReservePanel'
 import { X402Panel } from '@/components/panels/X402Panel'
 import { RadarPanel } from '@/components/radar/RadarPanel'
 import { InstrumentBar } from '@/components/shell/InstrumentBar'
+import { API_ENABLED } from '@/lib/api'
 import { useRadar } from '@/state/queries'
 import { TerminalProvider, useTerminal } from '@/state/terminal-context'
+import { useSignerAddress } from '@/state/demo-signer'
 import type { Address } from 'viem'
 
 /**
@@ -22,8 +23,10 @@ import type { Address } from 'viem'
  */
 export default function TerminalPage() {
   const hydrated = useHydrated()
-  const { address } = useAccount()
-  const connectedAddress = (hydrated && address ? address : null) as Address | null
+  // The demo key, when loaded, is the identity this page operates as — so the architect targets the
+  // trove that key owns without a wallet extension in the loop.
+  const signer = useSignerAddress()
+  const connectedAddress = (hydrated && signer ? signer : null) as Address | null
 
   return (
     <TerminalProvider defaultOwner={connectedAddress ?? ''}>
@@ -68,9 +71,19 @@ function TerminalBody({ connectedAddress }: { connectedAddress: Address | null }
           <div className="min-w-0 border-b border-rule xl:border-b-0 xl:border-r">
             <ReservePanel connectedAddress={connectedAddress} compact />
           </div>
-          <div className="min-w-0 border-b border-rule xl:border-b-0 xl:border-r">
-            <X402Panel defaultAddress={selectedTrove?.address} />
-          </div>
+          {API_ENABLED ? (
+            <div className="min-w-0 border-b border-rule xl:border-b-0 xl:border-r">
+              <X402Panel defaultAddress={selectedTrove?.address} />
+            </div>
+          ) : (
+            <div className="min-w-0 border-b border-rule px-3 py-4 xl:border-b-0 xl:border-r">
+              <span className="etched">Pay-to-deleverage · x402</span>
+              <p className="pt-2 text-body text-ink-2">
+                The paid telemetry endpoint is served by the testnet engine, which indexes chain 31611.
+                This bundle reads Mezo mainnet directly and does not proxy another chain&apos;s data.
+              </p>
+            </div>
+          )}
           <div className="min-w-0">
             <ProofLedger connectedAddress={connectedAddress} limit={6} />
           </div>

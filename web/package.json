@@ -2,12 +2,13 @@
   "name": "pylon-terminal",
   "version": "1.0.0",
   "private": true,
-  "description": "Pylon — the redemption terminal for Mezo bitcoin CDPs. Non-custodial flash execution, redemption radar, shield reserve, x402 pay-to-deleverage.",
+  "description": "Pylon \u2014 the redemption terminal for Mezo bitcoin CDPs. Non-custodial flash execution, redemption radar, shield reserve, x402 pay-to-deleverage.",
   "scripts": {
     "dev": "next dev -p 3000",
-    "build": "next build",
+    "build": "node scripts/build-networks.mjs",
     "typecheck": "tsc --noEmit",
-    "preview": "serve out -l 4173"
+    "preview": "serve out -l 4173",
+    "build:single": "next build"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.3",
@@ -30,6 +31,10 @@
     "node": ">=20.9.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["bufferutil", "keccak", "utf-8-validate"]
+    "onlyBuiltDependencies": [
+      "bufferutil",
+      "keccak",
+      "utf-8-validate"
+    ]
   }
 }

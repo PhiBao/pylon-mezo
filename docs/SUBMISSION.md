@@ -122,6 +122,11 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
   radar, quotes, relay and `x402`, and it still works with no backend if the engine is unreachable
 * Live engine: **https://pylon-mezo-api.fly.dev** — the Rust service on Fly.io (`/health`,
   `/api/v1/radar`, `/api/v1/reserve`, `/api/v1/proofs`, `/x402`, `/api/v1/execute/*`)
+* Live mainnet build: **https://pylon-mezo.vercel.app/mainnet/** — the same terminal prerendered
+  against chain 31612 (RPC-only, mainnet contract set, real mainnet reserve state). The header's
+  network chip switches between the two bundles.
+* Demo execution without an extension: **Demo key** in the header signs trove ballots locally with a
+  pasted testnet key (memory only), for recording the flow when MetaMask/Rabby is not available.
 * Repository: **https://github.com/PhiBao/pylon-mezo** (public; full history, tests, deployment records
   for both chains, the audit report and the engineering log)
 * Mainnet contracts: engine `0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D`, reserve

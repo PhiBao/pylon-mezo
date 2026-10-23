@@ -4,7 +4,8 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { Panel } from '@/components/ui/Panel'
 import { StateBlock, Badge } from '@/components/ui/StateBlock'
-import { explorerBlock, explorerTx } from '@/lib/chain'
+import { explorerBlock, explorerTx, NETWORK_LABEL } from '@/lib/chain'
+import { API_ENABLED } from '@/lib/api'
 import { fmtAge, fmtBtc, fmtInt, fmtMusd, shortAddress, shortHash } from '@/lib/format'
 import type { ProofKind } from '@/lib/types'
 import { useProofs } from '@/state/queries'
@@ -59,11 +60,11 @@ export function ProofLedger({
 
   return (
     <Panel
-      label="Proof ledger · Mezo Testnet"
+      label={`Proof ledger · ${NETWORK_LABEL}`}
       meta={
         <>
           <Badge tone={proofs.data?.source === 'engine' ? 'emerald' : 'caution'}>
-            {proofs.data?.source === 'engine' ? 'live' : 'frozen deployment ledger'}
+            {proofs.data?.source === 'engine' ? 'live' : API_ENABLED ? 'frozen deployment ledger' : 'testnet-only record'}
           </Badge>
           <span className="figure text-label text-ink-3">{fmtInt(filtered.length)} entries</span>
         </>
@@ -111,7 +112,9 @@ export function ProofLedger({
             detail={
               filter === 'mine'
                 ? 'Run a flash loop, unwind, exit or shield defence from this wallet and its explorer-linked receipt will appear here.'
-                : 'The ledger fills as Pylon operations execute on Mezo Testnet.'
+                : API_ENABLED
+                  ? `The ledger fills as Pylon operations execute on ${NETWORK_LABEL}.`
+                  : 'The explorer-linked ledger is recorded by the testnet engine. This bundle reads Mezo mainnet directly and shows no testnet rows.'
             }
           />
         </div>

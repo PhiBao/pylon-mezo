@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ConnectButton } from './ConnectButton'
+import { DemoSignerButton } from './DemoSignerButton'
 import { Wordmark } from './Wordmark'
-import { EXPLORER_URL } from '@/lib/chain'
+import { ACTIVE_CHAIN, EXPLORER_URL, IS_MAINNET, NETWORK_LABEL } from '@/lib/chain'
 import { useRuntimeConfig } from '@/state/queries'
 
 const NAV = [
@@ -30,11 +31,17 @@ function SourcePill() {
 }
 
 function NetworkBadge() {
+  // Each network is its own static bundle, so switching is a link, not a state change: /mainnet/
+  // carries the mainnet deployment and RPC, / carries testnet plus the hosted engine.
+  const other = IS_MAINNET ? '/' : '/mainnet/'
   return (
-    <span className="chip" title="Mezo Testnet — chain id 31611">
-      <span className="inline-block h-[5px] w-[5px] bg-amber" />
-      <span className="hidden sm:inline">Mezo Testnet</span>
-      <span className="text-ink-3">31611</span>
+    <span className="chip" title={`${NETWORK_LABEL} — chain ${ACTIVE_CHAIN.id}`}>
+      <span className={`inline-block h-[5px] w-[5px] ${IS_MAINNET ? 'bg-emerald' : 'bg-amber'}`} />
+      <span className="hidden sm:inline">{NETWORK_LABEL}</span>
+      <span className="text-ink-3">{ACTIVE_CHAIN.id}</span>
+      <a className="link ml-1 text-label" href={other} title={`Open the ${IS_MAINNET ? 'testnet' : 'mainnet'} build`}>
+        {IS_MAINNET ? 'testnet' : 'mainnet'} ↗
+      </a>
     </span>
   )
 }
@@ -46,12 +53,12 @@ function VerifiedChip() {
       target="_blank"
       rel="noreferrer noopener"
       className="chip chip-link hidden xl:inline-flex"
-      title="Every figure and proof in this terminal resolves to Mezo Testnet"
+      title={`Every figure and proof in this terminal resolves to ${NETWORK_LABEL}`}
     >
       <svg viewBox="0 0 12 12" className="h-[9px] w-[9px] text-emerald" aria-hidden="true">
         <path d="M1.5 6.5 4.5 9.5 10.5 3" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="square" />
       </svg>
-      <span className="text-emerald">Verified on Mezo Testnet</span>
+      <span className="text-emerald">Verified on {NETWORK_LABEL}</span>
     </a>
   )
 }
@@ -84,6 +91,7 @@ export function AppHeader() {
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <SourcePill />
+          <DemoSignerButton />
           <ConnectButton />
         </div>
       </div>

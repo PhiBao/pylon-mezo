@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAccount, useChainId, useConnect, useConnectors, useDisconnect, useSwitchChain } from 'wagmi'
 import { useHydrated } from '@/hooks'
-import { explorerAddress } from '@/lib/chain'
+import { ACTIVE_CHAIN, explorerAddress } from '@/lib/chain'
 import { fmtBtc, fmtMusd, shortAddress } from '@/lib/format'
 import { useWalletState } from '@/state/queries'
 
@@ -46,7 +46,7 @@ export function ConnectButton() {
     )
   }
 
-  const wrongChain = isConnected && chainId !== 31611
+  const wrongChain = isConnected && chainId !== ACTIVE_CHAIN.id
 
   if (!isConnected || !address) {
     const injected = connectors.filter((connector) => connector.type === 'injected')
@@ -146,9 +146,9 @@ export function ConnectButton() {
               <button
                 type="button"
                 className="link figure text-left text-meta text-vermilion"
-                onClick={() => switchChain({ chainId: 31611 })}
+                onClick={() => switchChain({ chainId: ACTIVE_CHAIN.id })}
               >
-                Switch to Mezo Testnet (31611)
+                Switch to {ACTIVE_CHAIN.name} ({ACTIVE_CHAIN.id})
               </button>
             ) : null}
             <button

@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 import { useAccount, useChainId, useSendTransaction, useSignTypedData, useSwitchChain } from 'wagmi'
 import type { Address, Hex, TypedData, TypedDataDomain } from 'viem'
 import { api, ApiError, type Eip712TypedData } from '@/lib/api'
-import { DEPLOYED, explorerTx, mezoTestnet } from '@/lib/chain'
+import {ACTIVE_CHAIN, DEPLOYED, explorerTx, NETWORK_LABEL } from '@/lib/chain'
 import {
   applySignatureTemplate,
   computeHints,
@@ -24,6 +24,7 @@ import {
   type UnwindIntent,
 } from '@/lib/execution'
 import { publicClient } from '@/lib/rpc'
+import { demoAccount, demoWalletClient, useDemoSigner } from '@/state/demo-signer'
 
 export type BroadcastRoute = 'engine' | 'wallet'
 
@@ -119,10 +120,33 @@ export interface AtomicExecution {
 export function useAtomicExecution(): AtomicExecution {
   const { address } = useAccount()
   const chainId = useChainId()
+  const demo = useDemoSigner()
   const { signTypedDataAsync } = useSignTypedData()
   const { sendTransactionAsync } = useSendTransaction()
   const { switchChainAsync } = useSwitchChain()
   const [state, setState] = useState<ExecState>(initial)
+
+  // A demo key, when loaded, is the signer for this session: it signs the same EIP-712 ballot the
+  // wallet would, and sends through the same trusted targets. No extension involved.
+  const signerAddress = demo.address ?? address ?? null
+  const signTyped = useCallback(
+    async (payload: Parameters<typeof signTypedDataAsync>[0]) => {
+      const local = demoAccount()
+      if (local) return local.signTypedData(payload as never)
+      return signTypedDataAsync(payload)
+    },
+    [signTypedDataAsync],
+  )
+  const sendTransaction = useCallback(
+    async (call: { to: `0x${string}`; data: `0x${string}`; value: bigint }) => {
+      const local = demoAccount()
+      if (!local) return sendTransactionAsync(call)
+      const wallet = demoWalletClient()
+      if (!wallet) throw new Error('Demo signer is no longer loaded — paste the key again')
+      return wallet.sendTransaction({ account: local, chain: ACTIVE_CHAIN, ...call })
+    },
+    [sendTransactionAsync],
+  )
 
   const reset = useCallback(() => setState(initial), [])
 
@@ -135,7 +159,7 @@ export function useAtomicExecution(): AtomicExecution {
         hash,
         explorerUrl: explorerTx(hash),
         label,
-        message: 'Transaction reverted on Mezo Testnet',
+        message: `Transaction reverted on ${NETWORK_LABEL}`,
       })
       return
     }
@@ -144,8 +168,8 @@ export function useAtomicExecution(): AtomicExecution {
 
   const runLoop = useCallback(
     async (input: LoopRequestInput, route: BroadcastRoute) => {
-      if (!address) {
-        setState({ stage: 'failed', message: 'Connect a wallet to sign the trove authorisation' })
+      if (!signerAddress) {
+        setState({ stage: 'failed', message: 'Connect a wallet or load a demo key to sign the trove authorisation' })
         return
       }
       const label = `Flash loop ${input.collAdd.toString()} wei → ${input.debtAmount.toString()} wei`
@@ -155,7 +179,7 @@ export function useAtomicExecution(): AtomicExecution {
 
         if (route === 'engine' && input.typedData) {
           setState({ stage: 'signing', label })
-          const signature = await signTypedDataAsync(asViemTypedData(input.typedData))
+          const signature = await signTyped(asViemTypedData(input.typedData))
           setState({ stage: 'broadcasting', label, route: 'engine' })
           const receipt = await api.executeLoop({
             owner: input.owner,
@@ -179,7 +203,7 @@ export function useAtomicExecution(): AtomicExecution {
           recipient: DEPLOYED.engine,
         }
         setState({ stage: 'signing', label })
-        const signature = await signTypedDataAsync(loopTypedData(intent))
+        const signature = await signTyped(loopTypedData(intent))
         setState({ stage: 'broadcasting', label, route: 'wallet' })
 
         const call = input.txTemplate
@@ -193,19 +217,19 @@ export function useAtomicExecution(): AtomicExecution {
         if (!isTrustedTarget(call.to)) {
           throw new Error(`Refusing to send: ${call.to} is not a deployed Pylon or Mezo contract`)
         }
-        const hash = await sendTransactionAsync(call)
+        const hash = await sendTransaction(call)
         await confirmReceipt(hash, label)
       } catch (error) {
         setState({ stage: 'failed', label, message: describeExecError(error) })
       }
     },
-    [address, confirmReceipt, sendTransactionAsync, signTypedDataAsync],
+    [signerAddress, confirmReceipt, sendTransaction, signTyped, address],
   )
 
   const runUnwind = useCallback(
     async (input: UnwindRequestInput, route: BroadcastRoute) => {
-      if (!address) {
-        setState({ stage: 'failed', message: 'Connect a wallet to sign the trove authorisation' })
+      if (!signerAddress) {
+        setState({ stage: 'failed', message: 'Connect a wallet or load a demo key to sign the trove authorisation' })
         return
       }
       const label = `Flash unwind ${input.repay.toString()} wei`
@@ -215,7 +239,7 @@ export function useAtomicExecution(): AtomicExecution {
 
         if (route === 'engine' && input.typedData) {
           setState({ stage: 'signing', label })
-          const signature = await signTypedDataAsync(asViemTypedData(input.typedData))
+          const signature = await signTyped(asViemTypedData(input.typedData))
           setState({ stage: 'broadcasting', label, route: 'engine' })
           const receipt = await api.executeUnwind({
             owner: input.owner,
@@ -240,7 +264,7 @@ export function useAtomicExecution(): AtomicExecution {
           recipient: DEPLOYED.engine,
         }
         setState({ stage: 'signing', label })
-        const signature = await signTypedDataAsync(unwindTypedData(intent))
+        const signature = await signTyped(unwindTypedData(intent))
         setState({ stage: 'broadcasting', label, route: 'wallet' })
 
         const call = input.txTemplate
@@ -254,13 +278,13 @@ export function useAtomicExecution(): AtomicExecution {
         if (!isTrustedTarget(call.to)) {
           throw new Error(`Refusing to send: ${call.to} is not a deployed Pylon or Mezo contract`)
         }
-        const hash = await sendTransactionAsync(call)
+        const hash = await sendTransaction(call)
         await confirmReceipt(hash, label)
       } catch (error) {
         setState({ stage: 'failed', label, message: describeExecError(error) })
       }
     },
-    [address, confirmReceipt, sendTransactionAsync, signTypedDataAsync],
+    [signerAddress, confirmReceipt, sendTransaction, signTyped, address],
   )
 
   const runExit = useCallback(
@@ -276,7 +300,7 @@ export function useAtomicExecution(): AtomicExecution {
 
         if (route === 'engine' && input.typedData) {
           setState({ stage: 'signing', label })
-          const signature = await signTypedDataAsync(asViemTypedData(input.typedData))
+          const signature = await signTyped(asViemTypedData(input.typedData))
           setState({ stage: 'broadcasting', label, route: 'engine' })
           const receipt = await api.executeExit({ owner: input.owner, signature, deadline })
           await confirmReceipt(receipt.txHash as Hex, label)
@@ -290,7 +314,7 @@ export function useAtomicExecution(): AtomicExecution {
           recipient: DEPLOYED.engine,
         }
         setState({ stage: 'signing', label })
-        const signature = await signTypedDataAsync(exitTypedData(intent))
+        const signature = await signTyped(exitTypedData(intent))
         setState({ stage: 'broadcasting', label, route: 'wallet' })
 
         const call = input.txTemplate
@@ -304,13 +328,13 @@ export function useAtomicExecution(): AtomicExecution {
         if (!isTrustedTarget(call.to)) {
           throw new Error(`Refusing to send: ${call.to} is not a deployed Pylon or Mezo contract`)
         }
-        const hash = await sendTransactionAsync(call)
+        const hash = await sendTransaction(call)
         await confirmReceipt(hash, label)
       } catch (error) {
         setState({ stage: 'failed', label, message: describeExecError(error) })
       }
     },
-    [address, confirmReceipt, sendTransactionAsync, signTypedDataAsync],
+    [signerAddress, confirmReceipt, sendTransaction, signTyped, address],
   )
 
   return {
@@ -319,10 +343,10 @@ export function useAtomicExecution(): AtomicExecution {
     runLoop,
     runUnwind,
     runExit,
-    walletReady: Boolean(address) && chainId === mezoTestnet.id,
-    wrongChain: Boolean(address) && chainId !== mezoTestnet.id,
+    walletReady: Boolean(signerAddress),
+    wrongChain: !demo.address && Boolean(address) && chainId !== ACTIVE_CHAIN.id,
     switchToMezo: () => {
-      void switchChainAsync({ chainId: mezoTestnet.id }).catch(() => undefined)
+      void switchChainAsync({ chainId: ACTIVE_CHAIN.id }).catch(() => undefined)
     },
   }
 }
@@ -331,7 +355,7 @@ export const describeExecError = (error: unknown): string => {
   if (error instanceof ApiError) return error.message
   if (error instanceof Error) {
     if (/user rejected|denied/i.test(error.message)) return 'Signature rejected in the wallet'
-    if (/insufficient funds/i.test(error.message)) return 'Wallet has no BTC for gas on Mezo Testnet'
+    if (/insufficient funds/i.test(error.message)) return `Wallet has no BTC for gas on ${NETWORK_LABEL}`
     return error.message
   }
   return 'Unexpected execution error'

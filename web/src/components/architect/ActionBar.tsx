@@ -1,6 +1,7 @@
 'use client'
 
 import { HashLink } from '@/components/ui/AddressChip'
+import { NETWORK_LABEL } from '@/lib/chain'
 import { SegmentedControl } from '@/components/ui/SegmentedControl'
 import type { BroadcastRoute, ExecState } from '@/state/execution'
 
@@ -74,7 +75,7 @@ export function ActionBar({
                 label: 'Self-broadcast',
                 hint: walletAvailable
                   ? 'Your wallet sends the transaction; nonce and hints are computed on chain by the terminal'
-                  : 'Requires a connected wallet on Mezo Testnet',
+                  : `Requires a connected wallet on ${NETWORK_LABEL}`,
                 disabled: !walletAvailable,
               },
             ]}
@@ -124,7 +125,7 @@ export function ActionBar({
 
           {state.stage === 'confirmed' ? (
             <span className="figure text-meta text-emerald">
-              Confirmed on Mezo Testnet — the queue and your position will refresh within one poll.
+              {`Confirmed on ${NETWORK_LABEL} — the queue and your position will refresh within one poll.`}
             </span>
           ) : null}
 

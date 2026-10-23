@@ -1,5 +1,5 @@
 import { createConfig, http, injected } from 'wagmi'
-import { MEZO_RPC_URL, mezoTestnet } from '@/lib/chain'
+import { MEZO_MAINNET_RPC, MEZO_RPC_URL, mezoMainnet, mezoTestnet } from '@/lib/chain'
 
 /**
  * Deliberately minimal wallet layer: injected connectors only, no hosted wallet SDK.
@@ -10,11 +10,12 @@ import { MEZO_RPC_URL, mezoTestnet } from '@/lib/chain'
  * transactions themselves.
  */
 export const wagmiConfig = createConfig({
-  chains: [mezoTestnet],
+  chains: [mezoTestnet, mezoMainnet],
   connectors: [injected({ shimDisconnect: true })],
   multiInjectedProviderDiscovery: true,
   transports: {
     [mezoTestnet.id]: http(MEZO_RPC_URL, { batch: true, retryCount: 2, timeout: 15_000 }),
+    [mezoMainnet.id]: http(MEZO_MAINNET_RPC, { batch: true, retryCount: 2, timeout: 20_000 }),
   },
   ssr: false,
 })

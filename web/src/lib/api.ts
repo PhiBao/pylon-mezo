@@ -44,6 +44,13 @@ export const API_BASE = (process.env.NEXT_PUBLIC_API_BASE ?? 'http://localhost:8
   '',
 )
 
+/**
+ * The mainnet bundle is built with an empty API base: the hosted engine indexes chain 31611, so
+ * serving its numbers on 31612 would be worse than having none. Every query then falls back to
+ * direct Mezo RPC reads.
+ */
+export const API_ENABLED = API_BASE !== ''
+
 export type ApiErrorKind = 'unreachable' | 'timeout' | 'http' | 'shape' | 'rejected'
 
 export class ApiError extends Error {
@@ -83,6 +90,13 @@ interface RequestOptions extends RequestInit {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { timeoutMs = 9_000, headers, ...rest } = options
   const url = `${API_BASE}${path}`
+  if (!API_ENABLED) {
+    throw new ApiError(
+      'unreachable',
+      'No engine service is configured for this network bundle — reading Mezo directly',
+      url,
+    )
+  }
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
 

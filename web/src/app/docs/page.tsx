@@ -4,7 +4,7 @@ import { AddressChip } from '@/components/ui/AddressChip'
 import { Meter } from '@/components/ui/Meter'
 import { SpecRow } from '@/components/ui/Panel'
 import { API_BASE } from '@/lib/api'
-import { DEPLOYED } from '@/lib/chain'
+import {DEPLOYED, NETWORK_LABEL } from '@/lib/chain'
 import { fmtBps, fmtMusd, fmtUnits, fmtWadPct } from '@/lib/format'
 import { useMarket, useReserve, useRuntimeConfig } from '@/state/queries'
 import { AtomicSequence, RedemptionSweep } from './diagrams'
@@ -175,7 +175,7 @@ export default function DocsPage() {
               />
               <SpecRow label="Mezo borrowing fee" value="0.10%" hint="on debt increases only" />
               <SpecRow label="Mezo fixed interest" value="1.00%" hint="accrues on the principal, set at open" tone="muted" />
-              <SpecRow label="BTC gas" value="native BTC on Mezo Testnet" tone="muted" />
+              <SpecRow label="BTC gas" value={`native BTC on ${NETWORK_LABEL}`} tone="muted" />
             </div>
             <p className="pt-3">
               A flash unwind on a 2,211 MUSD debt therefore costs roughly 5–6 MUSD in combined fees, of which nothing

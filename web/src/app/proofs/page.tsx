@@ -5,7 +5,7 @@ import { ProofLedger } from '@/components/panels/ProofLedger'
 import { AddressChip } from '@/components/ui/AddressChip'
 import { SpecRow } from '@/components/ui/Panel'
 import { useHydrated } from '@/hooks'
-import { DEPLOYED, EXPLORER_URL, MAINNET_DEPLOYED, MAINNET_EXPLORER_URL } from '@/lib/chain'
+import { ACTIVE_CHAIN, DEPLOYED, EXPLORER_URL, MAINNET_DEPLOYED, MAINNET_EXPLORER_URL, NETWORK_LABEL } from '@/lib/chain'
 import { useRuntimeConfig } from '@/state/queries'
 import type { Address } from 'viem'
 
@@ -103,7 +103,7 @@ export default function ProofsPage() {
             <div className="pt-2">
               <SpecRow label="Live rows" value="read from the engine service" tone="emerald" />
               <SpecRow label="Fallback rows" value="frozen deployment ledger" tone="caution" />
-              <SpecRow label="Chain" value="Mezo Testnet · 31611" tone="muted" />
+              <SpecRow label="Chain" value={`${NETWORK_LABEL} · ${ACTIVE_CHAIN.id}`} tone="muted" />
               <SpecRow label="Custody" value="none at any point" tone="muted" />
             </div>
             <p className="pt-2 text-[12px] leading-[1.5] text-ink-3">
@@ -114,7 +114,7 @@ export default function ProofsPage() {
           </section>
 
           <section className="px-4 py-4">
-            <span className="etched">Deployment manifest · chain 31611</span>
+            <span className="etched">Deployment manifest · chain {ACTIVE_CHAIN.id}</span>
             <ul className="flex flex-col gap-3 pt-3">
               {manifest.map((entry) => (
                 <li key={entry.label} className="flex flex-col gap-1.5">

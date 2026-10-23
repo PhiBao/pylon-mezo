@@ -1,11 +1,22 @@
 import { defineChain, getAddress, type Address } from 'viem'
 
-/** Mezo Testnet — the only network this terminal is built against today. */
+/**
+ * Two bundles are built from this source: `/` runs against Mezo Testnet (chain 31611) with the
+ * hosted engine, and `/mainnet/` runs against Mezo mainnet (chain 31612) as a pure RPC client. The
+ * build sets NEXT_PUBLIC_NETWORK=mainnet for the second one; nothing is chosen at runtime, so the
+ * prerendered HTML and the client always agree on the network.
+ */
+export const IS_MAINNET = process.env.NEXT_PUBLIC_NETWORK === 'mainnet'
+export const NETWORK_LABEL = IS_MAINNET ? 'Mezo mainnet' : 'Mezo Testnet'
+
 export const MEZO_TESTNET_ID = 31611
+export const MEZO_MAINNET_ID = 31612
 
 export const MEZO_RPC_URL = process.env.NEXT_PUBLIC_MEZO_RPC ?? 'https://rpc.test.mezo.org'
+export const MEZO_MAINNET_RPC =
+  process.env.NEXT_PUBLIC_MEZO_MAINNET_RPC ?? 'https://jsonrpc-mezo.boar.network'
 
-export const EXPLORER_URL = 'https://explorer.test.mezo.org'
+export const EXPLORER_URL = IS_MAINNET ? 'https://explorer.mezo.org' : 'https://explorer.test.mezo.org'
 
 export const mezoTestnet = defineChain({
   id: MEZO_TESTNET_ID,
@@ -23,6 +34,31 @@ export const mezoTestnet = defineChain({
   },
   testnet: true,
 })
+
+/** Mezo mainnet (31612). The terminal treats it as read-mostly: no hosted engine, RPC reads only. */
+export const mezoMainnet = defineChain({
+  id: MEZO_MAINNET_ID,
+  name: 'Mezo',
+  nativeCurrency: { name: 'Bitcoin', symbol: 'BTC', decimals: 18 },
+  rpcUrls: {
+    default: { http: [MEZO_MAINNET_RPC] },
+  },
+  blockExplorers: {
+    default: { name: 'Mezo Explorer', url: 'https://explorer.mezo.org' },
+  },
+  contracts: {
+    multicall3: { address: '0xcA11bde05977b3631167028862bE2a173976CA11', blockCreated: 1 },
+  },
+  testnet: false,
+})
+
+/**
+ * The chain this build runs against. `mezoTestnet` today; the network switch points this at mainnet
+ * in the /mainnet bundle (see NEXT_PUBLIC_NETWORK).
+ */
+export const ACTIVE_CHAIN = IS_MAINNET ? mezoMainnet : mezoTestnet
+export const RPC_URL = IS_MAINNET ? MEZO_MAINNET_RPC : MEZO_RPC_URL
+export const ACTIVE_CHAIN_ID = ACTIVE_CHAIN.id
 
 export const explorerTx = (hash: string, base: string = EXPLORER_URL): string => `${base}/tx/${hash}`
 export const explorerAddress = (address: string, base: string = EXPLORER_URL): string =>
@@ -49,6 +85,7 @@ export const MAINNET_DEPLOYED = {
   borrowerOpsSignatures: getAddress('0xB57ab578BF20b3e318f3EFAA587C51DBccE5df7a'),
   troveManager: getAddress('0x94AfB503dBca74aC3E4929BACEeDfCe19B93c193'),
   sortedTroves: getAddress('0x8C5DB4C62BF29c1C4564390d10c20a47E0b2749f'),
+  hintHelpers: getAddress('0xD267b3bE2514375A075fd03C3D9CBa6b95317DC3'),
   priceFeed: getAddress('0xc5aC5A8892230E0A3e1c473881A2de7353fFcA88'),
   router: getAddress('0x16A76d3cd3C1e3CE843C6680d6B37E9116b5C706'),
   poolFactory: getAddress('0x83FE469C636C4081b87bA5b3Ae9991c6Ed104248'),
@@ -66,7 +103,7 @@ export const MAINNET_DEPLOYED = {
  * guards; v4 passes solver-computed SortedTroves hints into positions so the nested call no longer
  * pays for on-chain hint resolution. v4 is the address used everywhere in this terminal.
  */
-export const DEPLOYED = {
+export const TESTNET_DEPLOYED = {
   chainId: MEZO_TESTNET_ID,
   engine: getAddress('0x901198cD4EE9086997D839401f361518cAE46ed6'),
   reserve: getAddress('0x53a0206A307E084AdA2eB24346463cf4E14C5131'),
@@ -84,6 +121,9 @@ export const DEPLOYED = {
   hintHelpers: getAddress('0x4e4cBA3779d56386ED43631b4dCD6d8EacEcBCF6'),
   priceFeed: getAddress('0x86bCF0841622a5dAC14A313a15f96A95421b9366'),
 } as const
+
+/** The deployment the current bundle runs against. */
+export const DEPLOYED = IS_MAINNET ? MAINNET_DEPLOYED : TESTNET_DEPLOYED
 
 /**
  * The Mezo BTC oracle is a native precompile. Pylon reads it directly for price-dependent maths

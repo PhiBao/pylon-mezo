@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { NETWORK_LABEL } from '@/lib/chain'
 import { isAddress } from 'viem'
 import { AddressChip } from '@/components/ui/AddressChip'
 import { Panel, SpecRow } from '@/components/ui/Panel'
@@ -103,7 +104,10 @@ export function PositionArchitect({ connectedAddress }: { connectedAddress: stri
               <span className="figure text-label text-ink-3">
                 {trove.data.value.exists ? 'active trove' : 'no active trove'}
               </span>
-              <span className="figure text-meta text-ink">{fmtWadPct(trove.data.value.icrWad)}</span>
+              <span className="figure text-meta text-ink">
+                {/* getCurrentICR returns type(uint256).max for a trove that does not exist — never print it. */}
+                {trove.data.value.exists ? fmtWadPct(trove.data.value.icrWad) : '—'}
+              </span>
             </span>
           ) : null}
         </div>
@@ -126,7 +130,7 @@ export function PositionArchitect({ connectedAddress }: { connectedAddress: stri
 
       {configValue === null ? (
         <div className="px-3 py-3">
-          <StateBlock state="loading" title="Reading protocol configuration from Mezo Testnet" skeletonRows={2} />
+          <StateBlock state="loading" title={`Reading protocol configuration from ${NETWORK_LABEL}`} skeletonRows={2} />
         </div>
       ) : (
         <>
@@ -134,7 +138,7 @@ export function PositionArchitect({ connectedAddress }: { connectedAddress: stri
             <>
               {trove.isLoading && owner ? (
                 <div className="px-3 py-3">
-                  <StateBlock state="loading" title="Reading the trove from Mezo Testnet" skeletonRows={2} />
+                  <StateBlock state="loading" title={`Reading the trove from ${NETWORK_LABEL}`} skeletonRows={2} />
                 </div>
               ) : null}
 
@@ -225,7 +229,7 @@ export function PositionArchitect({ connectedAddress }: { connectedAddress: stri
             label="Wallet BTC"
             value={wallet.data ? fmtBtc(wallet.data.btcBalance.toString()) : '—'}
             tone="muted"
-            hint="pays gas on Mezo Testnet"
+            hint={`pays gas on ${NETWORK_LABEL}`}
           />
           <SpecRow
             label="Reserve shares"
@@ -235,7 +239,7 @@ export function PositionArchitect({ connectedAddress }: { connectedAddress: stri
           />
         </div>
         <p className="pt-2 text-[12px] leading-[1.5] text-ink-3">
-          Every mode is atomic on Mezo Testnet. Pylon never holds funds: the flash leg is borrowed and repaid
+          Every mode is atomic on {NETWORK_LABEL}. Pylon never holds funds: the flash leg is borrowed and repaid
           inside one transaction, and a failure reverts the whole operation.
         </p>
       </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { NETWORK_LABEL } from '@/lib/chain'
 import type { Address } from 'viem'
 import { Badge } from '@/components/ui/StateBlock'
 import { Panel, SpecRow } from '@/components/ui/Panel'
@@ -104,7 +105,7 @@ export function RadarPanel({ limit, connectedAddress }: { limit: number; connect
           <StateBlock
             state="empty"
             title="No troves in the redemption queue"
-            detail="SortedTroves is empty on Mezo Testnet right now, so nothing can be redeemed against a borrow position."
+            detail={`SortedTroves is empty on ${NETWORK_LABEL} right now, so nothing can be redeemed against a borrow position.`}
           />
         </div>
       ) : null}

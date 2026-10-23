@@ -3,7 +3,7 @@
 import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import type { Address } from 'viem'
-import { api, describeError, shouldFallBack, type LoopQuoteWire, type UnwindQuoteWire } from '@/lib/api'
+import { API_ENABLED, api, describeError, shouldFallBack, type LoopQuoteWire, type UnwindQuoteWire } from '@/lib/api'
 import { DEPLOYED } from '@/lib/chain'
 import {
   localExitQuote,
@@ -242,6 +242,13 @@ export function useProofs(): UseQueryResult<Sourced<ProofLedger>> {
     queryKey: ['proofs'],
     refetchInterval: POLL.proofs,
     queryFn: async (): Promise<Sourced<ProofLedger>> => {
+      if (!API_ENABLED) {
+        return {
+          value: { proofs: [] },
+          source: 'rpc',
+          note: 'The proof ledger is written by the testnet engine service; this bundle reads chain 31612 directly.',
+        }
+      }
       try {
         const ledger = await api.proofs()
         return { value: normalizeLedger(ledger), source: 'engine' }

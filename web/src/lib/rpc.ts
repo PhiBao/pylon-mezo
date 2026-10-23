@@ -22,7 +22,7 @@ import {
   tigrisPoolAbi,
   troveManagerAbi,
 } from './abi'
-import { DEPLOYED, MEZO_RPC_URL, MEZO_TESTNET_ID, PRICE_ORACLE, mezoTestnet } from './chain'
+import { ACTIVE_CHAIN, ACTIVE_CHAIN_ID, DEPLOYED, PRICE_ORACLE, RPC_URL } from './chain'
 import { mulDiv } from './format'
 import type {
   ExitQuote,
@@ -44,8 +44,8 @@ export const readFlashMusdReserve = async (): Promise<bigint> => {
 }
 
 export const publicClient: PublicClient = createPublicClient({
-  chain: mezoTestnet,
-  transport: http(MEZO_RPC_URL, { batch: true, retryCount: 2, timeout: 15_000 }),
+  chain: ACTIVE_CHAIN,
+  transport: http(RPC_URL, { batch: true, retryCount: 2, timeout: 15_000 }),
 })
 
 export class RpcReadError extends Error {
@@ -101,9 +101,9 @@ const poolReserves = async (pool: Address) => {
 
 export async function readMarketFromRpc(): Promise<Market> {
   const chainId = await publicClient.getChainId()
-  if (chainId !== MEZO_TESTNET_ID) {
+  if (chainId !== ACTIVE_CHAIN_ID) {
     throw new RpcReadError(
-      `RPC ${MEZO_RPC_URL} reports chain ${chainId}; expected Mezo Testnet (${MEZO_TESTNET_ID})`,
+      `RPC ${RPC_URL} reports chain ${chainId}; expected ${ACTIVE_CHAIN.name} (${ACTIVE_CHAIN_ID})`,
     )
   }
 
@@ -162,7 +162,7 @@ export async function readConfigFromRpc(): Promise<import('./types').EngineConfi
   const code = await publicClient.getBytecode({ address: DEPLOYED.engine })
   if (!code || code === '0x') {
     throw new RpcReadError(
-      `No Pylon engine bytecode at ${DEPLOYED.engine} on chain ${MEZO_TESTNET_ID}: the bundled deployment manifest is stale`,
+      `No Pylon engine bytecode at ${DEPLOYED.engine} on chain ${ACTIVE_CHAIN_ID}: the bundled deployment manifest is stale`,
     )
   }
 
@@ -180,7 +180,7 @@ export async function readConfigFromRpc(): Promise<import('./types').EngineConfi
   })
 
   return {
-    chainId: MEZO_TESTNET_ID,
+    chainId: ACTIVE_CHAIN_ID,
     engine: DEPLOYED.engine,
     reserve: DEPLOYED.reserve,
     positionImplementation: DEPLOYED.positionImplementation,

@@ -391,7 +391,14 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
   engine is a container on Fly (`fly deploy`). The split is deliberate: Vercel has no Rust runtime, and
   the terminal stays complete without the engine — reads go straight to Mezo RPC and execution is
   signed in the user's wallet.
-* **Network:** Mezo Testnet, chain ID `31611`, explorer <https://explorer.test.mezo.org>.
+* **Network switch:** `/` is Mezo Testnet (31611, engine API). **`/mainnet/` is Mezo mainnet (31612)** —
+  its own prerendered bundle, reading mainnet RPC directly with no engine (the header shows
+  `RPC read-only` and the mainnet contract set). The network chip in the header links between them.
+* **Network:** Mezo Testnet, chain ID `31611`, explorer <https://explorer.test.mezo.org>; mainnet,
+  chain ID `31612`, explorer <https://explorer.mezo.org>.
+* **No-extension demo:** the header's **Demo key** control accepts a private key at runtime and signs
+  the same EIP-712 ballots locally, so a loop/unwind/exit can be executed without MetaMask or Rabby.
+  The key is held in the tab's memory only (never storage) and is forgotten on reload.
 * **Rendered walkthrough (1:57):** `docs/video/pylon-demo.mp4` — narrated, 1920×1080, subtitles burned
   in, sidecar `docs/video/pylon-demo.srt`. Recorded against the live terminal with the engine
   connected; scene-by-scene notes and the re-render source are in `docs/video/README.md`.

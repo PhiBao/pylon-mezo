@@ -1,7 +1,7 @@
 'use client'
 
 import { AddressChip } from '@/components/ui/AddressChip'
-import { DEPLOYED, EXPLORER_URL } from '@/lib/chain'
+import { ACTIVE_CHAIN, DEPLOYED, EXPLORER_URL, IS_MAINNET } from '@/lib/chain'
 import { useRuntimeConfig } from '@/state/queries'
 
 export function AppFooter() {
@@ -25,7 +25,7 @@ export function AppFooter() {
     <footer className="mt-8 border-t border-rule">
       <div className="mx-auto grid max-w-[1560px] gap-x-8 gap-y-6 px-3 py-8 lg:grid-cols-[1.2fr_1fr_1fr]">
         <div className="flex min-w-0 flex-col gap-3">
-          <span className="etched">Deployed contracts · chain 31611</span>
+          <span className="etched">Deployed contracts · chain {ACTIVE_CHAIN.id}</span>
           <div className="flex flex-wrap gap-x-4 gap-y-2">
             {contracts.map((entry) => (
               <AddressChip key={entry.label} address={entry.address} label={entry.label} />
@@ -50,8 +50,8 @@ export function AppFooter() {
           <ul className="flex flex-col gap-1.5 text-body text-ink-2">
             <li>Pylon is non-custodial: nothing is held between transactions.</li>
             <li>Flash liquidity is borrowed and repaid inside a single transaction.</li>
-            <li>Runs on Mezo Testnet only. Amounts are testnet MUSD and BTC.</li>
-            <li>Engine v2 is live on 31611; v1 was superseded after a repayment-accounting fault.</li>
+            <li>{IS_MAINNET ? 'Reads Mezo mainnet directly; execution is signed in your wallet.' : 'Runs on Mezo Testnet. Amounts are testnet MUSD and BTC.'}</li>
+            <li>{IS_MAINNET ? 'Mainnet runs the audited generation; the hosted engine is a testnet service.' : 'Engine v2 is live on 31611; v1 was superseded after a repayment-accounting fault.'}</li>
           </ul>
         </div>
       </div>
