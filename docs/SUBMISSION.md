@@ -95,9 +95,11 @@ the x402 endpoint also serve Track 2 — Access and Distribution.
 
 **Testnet, live and operating** — `PylonFlashEngine` `0x901198cD4EE9086997D839401f361518cAE46ed6`,
 `PylonReserve` `0x53a0206A307E084AdA2eB24346463cf4E14C5131`, `PylonPosition` template
-`0x0e64B682Add80A61d24E61ed360b3F3679C6860a`, live shielded position
-`0x02f472dd2c08a4dab586ab11bafb294c27f5182e`, three live atomic-path transactions, a live shield
-defence, and a hosted terminal on live testnet reads.
+`0x0e64B682Add80A61d24E61ed360b3F3679C6860a`, a live shielded position
+`0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326`. On the audited generation: the **position-mode flash loop**
+(`0xc1517166…`), the **position-mode unwind** (`0x4a2d139a…`), a **live shield loan** of 332.18 MUSD with
+2.62 MUSD of fees earned and a rising share price (1.002370), the claim enforced in code
+(`0xa06fe405`), and an **autonomous keeper defence** (`0x456e815b…`).
 
 **Mainnet, live with real value** — `PylonFlashEngine` `0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D`,
 `PylonReserve` `0x81175AaAC5Fa0873e64480502566Fe993bB88e62`, `PylonPosition` template
@@ -155,12 +157,10 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
 
 Explicit changes to cite:
 
-* The position flash loop's two code defects are **fixed and unit-tested** (a balance delta that
-  underflowed on every collateral-adding call, and another that underflowed on every repayment). The
-  on-chain execution is still outstanding: the testnet's effective gas ceiling is below what the
-  on-chain hint solver needs against 245+ troves, and the RPC returns no revert data for contract calls,
-  so the residual cause could not be isolated from the build environment. The native-trove paths — the
-  same three operations — are proven live.
+* The position flash loop **is proven live** (23 Oct): the two audit defects were fixed and the
+  "still reverts" note was withdrawn — it was the client sending value to a non-payable entrypoint, not
+  a contract defect. The native-trove paths and the position-mode loop/unwind are all live on the
+  audited generation.
 * Mainnet is no longer a plan: contracts deployed, capital deployed, a real x402 machine payment settled,
   and the pool migrated to a second generation with the capital intact.
 * Reserve reporting: per-position loans, realised yield, and a realisable-vs-locked split for LPs.

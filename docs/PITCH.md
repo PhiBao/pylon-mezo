@@ -80,6 +80,7 @@ signing.*
 | Real MUSD into the reserve, then a **second** deposit priced exactly right | 8 MUSD deposited, then 2.190243037756471532 MUSD whose shares came back worth the same — the live proof of the audit's highest-severity fix, which would have priced it at half |
 | The pool **migrated to a new generation** | the whole pool withdrawn, a second generation deployed, the capital redeposited — nothing stranded |
 | A real machine payment | 0.001 MUSD settled a paid report on the mainnet whale trove; the same proof then refused as a replay |
+| A live shield on the audited generation | 332.18 MUSD lent at 181.7% ICR, 2.62 MUSD of fees, share price 1.002370, the claim enforced in code, and a keeper that defended with nobody clicking |
 
 Testnet reserve state at submission: **1,105.19 MUSD assets · share price 1.0 · 543.94 MUSD claim settled
 and withdrawn · claim enforced in code.**
@@ -148,7 +149,8 @@ This is the piece Mezo is missing: a priced, enforceable market for redemption d
 4. Keeper market with bounties (the defence path is already permissionless).
 5. **Mainnet hardening** — mainnet is deployed and funded; next come timelocked reserve governance, a
    two-of-two owner, a dedicated keeper key, an external audit, and a real trove (Mezo's 2,000 MUSD
-   minimum debt is the one cost a small budget cannot cover).
+   minimum debt is the one cost a small budget cannot cover). The position-mode loop is no longer a gap:
+   it executed on the audited testnet generation, along with an autonomous keeper defence.
 
 ---
 

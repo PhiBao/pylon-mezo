@@ -208,6 +208,15 @@ The rule applied: **redeploy only if nothing is stranded.** Nothing was.
   visibility limit rather than at a conclusion.
 * **This was one pass.** A second pass would hunt new ground; the list above is what one pass reached,
   not a claim of exhaustion.
+* **The live position-mode loop is proven (23 Oct 2026), and the earlier "open investigation" is
+  withdrawn.** Position `0x34c4Bd9c…` (owner: this project's operator key) looped 0.050 → 0.051 BTC in
+  one transaction (`0xc1517166…`), then repaid 400 MUSD out of its own collateral (`0x4a2d139a…`), and
+  a keeper defended it autonomously (`0x456e815b…`). The reverts that the audit had recorded as an
+  unresolved network problem were **our own client attaching value to a non-payable entrypoint**: the
+  engine funds the loop's collateral from the swap, so `loopPosition` takes no ETH/BTC. The two
+  underflow defects (H4, H5) were real, were fixed, and the fixes are what made the path work. The
+  lesson is recorded here rather than quietly removed: an "unexplained revert" that the RPC hides is
+  still a claim, and a claim needs a working test.
 * **Post-audit changes (reviewed, tested, and reported here):** the engine's transfers are now
   checked (L4), and the engine gained one owner-only function, `rescueToken`, which moves tokens that
   are not part of its accounting and is refused while a flash is in flight. It exists because the

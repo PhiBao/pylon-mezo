@@ -94,7 +94,7 @@ atomic block, with the user's signature as the only authority.
 
 ### Primary workflow
 
-1. **Look at the radar.** The terminal opens on the live `SortedTroves` queue: every one of the ~294
+1. **Look at the radar.** The terminal opens on the live `SortedTroves` queue: every one of the ~296
    troves, ordered by nominal collateral ratio, with the MUSD that must be redeemed before the queue
    reaches each one. The vertical axis is *survivable BTC drawdown* (`1 − MCR/ICR`) rather than ICR,
    because that is the quantity a borrower actually manages: 111% and 128% are a rounding error apart on
@@ -181,7 +181,7 @@ where lending MUSD to defend someone is a yield strategy with an enforceable cla
 
   | Criterion (weight) | Evidence in this submission |
   | --- | --- |
-  | **Mezo Integration (30%)** | Nine live Mezo/Tigris contracts on testnet orchestrated per transaction, plus the audited generation on mainnet; both MUSD and BTC legs; `SortedTroves` indexed in full (~294 troves) every refresh; signatures verified by Mezo's own helper; MUSD borrowed and repaid, never wrapped. |
+  | **Mezo Integration (30%)** | Nine live Mezo/Tigris contracts on testnet orchestrated per transaction, plus the audited generation on mainnet; both MUSD and BTC legs; `SortedTroves` indexed in full (~296 troves) every refresh; signatures verified by Mezo's own helper; MUSD borrowed and repaid, never wrapped. |
   | **Product & Business Viability (30%)** | Three operations the Mezo app cannot do, aimed at its existing borrower base; a shield pool with real fee revenue (5.18 MUSD earned from 1,000 MUSD seeded) and an enforceable claim; distribution inside the terminal that borrowers already need. |
   | **Technical Implementation (20%)** | 19 Foundry tests over a faithful Mezo/Tigris mock harness, 6 Rust tests whose vectors are cross-checked against `cast`, real deployments, and the §5 engineering log. |
   | **User Experience (10%)** | Redemption radar and atomic path X-Ray; semantic colour; monospace ledger density; loading/empty/error states in every panel; reduced-motion support. |
@@ -394,10 +394,11 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
    needed before the queue reaches each one. Click any row to inspect that trove.
 2. **Read the tail table.** Notice that ranks 1–9 sit between 111% and 128%: those are the troves
    redemptions will touch next, at collateral ratios no liquidation alarm would flag.
-3. **Open `Reserve`.** 1,105.19 MUSD of capital in the audited generation at a 1.000000 share price.
-   The defence that earned the pool 5.18 MUSD of fees — 543.94 MUSD lent at a 179.9% ICR, called by a
-   third party — is on the previous generation and recorded in `Proofs`; its claim was settled during
-   the migration. The reserve is a lender with caps, not a vault: a depositor can always withdraw.
+3. **Open `Reserve`.** The audited generation is live with a real loan: **1,107.80 MUSD** of assets,
+   **332.18 MUSD** lent to one shielded position at **181.7% ICR**, **2.62 MUSD** of fees earned, and a
+   share price of **1.002370** — the fees lifted it. The claim is enforced: the owner's withdrawal while
+   the loan stands reverts with `ReserveDebtOutstanding` (`0xa06fe405`). A keeper defended that position
+   autonomously, with nobody clicking (`0x456e815b…`).
 4. **Open `Proofs`.** Every operation the product claims, with its transaction hash, the event to look
    for, and a "how to verify a row" panel.
 5. **Connect a wallet with a trove** (or paste a trove address into the architect) and drag the loop
@@ -406,7 +407,7 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
 
 ### Demo flow for a recording (≈2 minutes)
 
-1. Radar: "`SortedTroves`, all ~294 troves, ranked by who gets redeemed against first. This borrower sits
+1. Radar: "`SortedTroves`, all ~296 troves, ranked by who gets redeemed against first. This borrower sits
    at 111% and there is nothing between them and a redemption."
 2. Architect → `Loop`: 0.005 BTC, one signature → show the live transaction
    [`0x7933c853…`](https://explorer.test.mezo.org/tx/0x7933c8531f1c368da18ec70496e3d5eb5d6167f2b0160a63db224d21751e6430)
@@ -504,7 +505,7 @@ written up as commands in **[`docs/MAINNET-RUNBOOK.md`](docs/MAINNET-RUNBOOK.md)
 | Claim lifecycle | **Real.** A position settled its 543.943 MUSD claim, and the same position's collateral withdrawal reverted with `ReserveDebtOutstanding` (`0xa06fe405`) while the claim stood. |
 | Claim enforcement (`ReserveDebtOutstanding`) | **Real.** A collateral withdrawal from the owner while the loan is outstanding reverts. |
 | Redemption radar and quotes | **Real chain reads.** Full `SortedTroves` index, batched JSON-RPC; previews executed on the deployed engine. |
-| Position flash loop (engine → position → Mezo) | **Implemented, unit-tested against a faithful harness, and still not proven live — with the reason now known.** The audit found the two code defects that broke it (a BTC balance delta that double-counted `msg.value`, and an MUSD delta that underflowed on every repayment); both are fixed and covered by `test_position_flashLegsExecute`, whose harness now models Mezo's unified native/ERC-20 BTC ledger. A live `loopPosition` on the audited engine still reverts, and this testnet's RPC returns no revert data for contract calls (an expired-deadline control call returns nothing either) while reporting gas as a fixed fraction of the submitted limit, so the residual cause cannot be isolated from here. The leading hypothesis is the on-chain `SortedTroves` hint walk against 245+ troves exceeding what the RPC will relay — the same cost that makes a live collateral withdrawal consume ~3M gas. It is an open item, not a claim. |
+| Position flash loop and unwind (engine → position → Mezo) | **Real, live, mined.** Position `0x34c4Bd9c…` looped 0.050 → 0.051 BTC and +79.36 MUSD in one transaction (`0xc1517166…`), then repaid 400 MUSD out of its own collateral and left 0.000107 BTC for its owner (`0x4a2d139a…`). The two underflow defects the audit found were real and are fixed; the residual "still reverts" note turned out to be **our client attaching value to a non-payable function** — the engine funds the collateral from the swap, so `loopPosition` takes no ETH/BTC. Corrected and proven. |
 | `x402` endpoint | **Real 402 challenge + on-chain settlement verification**, on both chains. A real 0.001 MUSD payment settled a paid report on a mainnet trove; the same proof was then refused as a replay. The facilitator path is off by default and must settle. |
 | Native BTC-wallet trove opening through the UI | **Implemented.** The architect's first-run card creates the Pylon position and opens its trove in two wallet transactions, with Mezo's minimums and the live ICR enforced before signing. |
 | Execute relay (`POST /api/v1/execute/*`) | **Implemented and guarded.** The user signs, the operator pays gas, the engine verifies on-chain. Testnet only (`ALLOW_RELAY=1`), rate-limited, and off by default on mainnet. |
@@ -513,8 +514,7 @@ written up as commands in **[`docs/MAINNET-RUNBOOK.md`](docs/MAINNET-RUNBOOK.md)
 ### What is *not* built
 
 No token, no chain of our own, no mobile app, no custody, and no "AI agent" that trades on your behalf —
-the keeper defends only positions whose owners armed a policy, and only upward. The position-mode flash
-loop is fixed and unit-tested but has not executed on chain (see the row above), there is no external
+the keeper defends only positions whose owners armed a policy, and only upward. There is no external
 audit yet, no mainnet trove because Mezo's 2,000 MUSD minimum debt is out of this budget, and the
 contracts have no pause.
 

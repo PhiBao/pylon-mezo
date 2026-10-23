@@ -88,6 +88,10 @@ ICR, shield `armed`), then open the defence transaction from `Proofs`.
 | Shield defence | `0x0e3b671079592808ca499c830367a4f7deb012ae2c0f7bd9b6e9cdda2a2fb511` |
 | Reserve seeded | `0x9321dd9e394cf0166fd9cf0fcd78d49b31b142bf1c05bad47e190ef052600b68` |
 | Trove opened | `0xe10f306cc3d04df73f9945301bd16b68d7c273413f2a99e9ab0ba355bc0792ae` |
+| Position-mode flash loop (audited generation) | `0xc15171664acec23d6a6c6559b5788ef26f70bbec67738d0898993f8b9a2a4e03` |
+| Position-mode unwind (400 MUSD from collateral) | `0x4a2d139ab08c8582289dc019d284c0276920d64921e4693808b7b130e7d39ce0` |
+| Live shield defence, 221.23 MUSD | `0xa4fb80618f7ae1343517b93b9a08d88cc16a811f5dc62cec02f6667e69a96293` |
+| Keeper defence, nobody clicking | `0x456e815b049105283943e026e55b132e54e4614f62ed235fb0351046e980b84b` |
 
 **On Mezo mainnet (chain 31612) — cited in the close:**
 
