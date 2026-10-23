@@ -13,6 +13,7 @@ import { useAtomicExecution, type BroadcastRoute } from '@/state/execution'
 import { useTerminal, type ArchitectMode } from '@/state/terminal-context'
 import { ExitControls } from './ExitControls'
 import { LoopControls } from './LoopControls'
+import { OpenTroveCard } from './OpenTroveCard'
 import { ShieldControls } from './ShieldControls'
 import { UnwindControls } from './UnwindControls'
 import type { ArchitectSharedProps } from './types'
@@ -177,13 +178,23 @@ export function PositionArchitect({ connectedAddress }: { connectedAddress: stri
               ) : null}
 
               {owner && trove.data && !trove.data.value.exists ? (
-                <div className="px-3 py-3">
-                  <StateBlock
-                    state="empty"
-                    title="This address has no active Mezo trove"
-                    detail="Pylon operates on an existing trove: open one in Mezo first, then loop, unwind, shield or exit it from here."
+                isOwnTrove && configValue ? (
+                  <OpenTroveCard
+                    owner={owner}
+                    config={configValue}
+                    market={marketValue}
+                    wallet={wallet.data ?? null}
+                    onOpened={() => void trove.refetch()}
                   />
-                </div>
+                ) : (
+                  <div className="px-3 py-3">
+                    <StateBlock
+                      state="empty"
+                      title="This address has no active Mezo trove"
+                      detail="Pylon operates on the owner's existing trove. Connect that owner's wallet to open a Pylon trove here, or pick a trove from the radar to inspect it read-only."
+                    />
+                  </div>
+                )
               ) : null}
 
               {mode === 'loop' && trove.data?.value.exists ? (

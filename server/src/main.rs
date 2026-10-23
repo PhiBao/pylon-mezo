@@ -127,6 +127,8 @@ async fn main() -> Result<()> {
         // touch the RPC layer, so both carry an explicit per-client budget.
         paid_limiter: Arc::new(ratelimit::RateLimiter::new(30, std::time::Duration::from_secs(60))),
         read_limiter: Arc::new(ratelimit::RateLimiter::new(240, std::time::Duration::from_secs(60))),
+        // The relay spends the operator's gas on the user's behalf, so it gets a tight budget.
+        relay_limiter: Arc::new(ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(60))),
     };
 
     match cli.command.unwrap_or(Command::Serve) {

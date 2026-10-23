@@ -49,6 +49,10 @@ pub struct Config {
     /// The facilitator `verify` call proves a signature, not a settlement. The path stays off unless
     /// an operator explicitly enables it, and it always settles before serving the resource.
     pub x402_allow_facilitator: bool,
+    /// The execute relay pays gas on behalf of a user who signed an action. That is a faucet: anyone
+    /// with a valid signature for their own trove can spend the operator's balance. Enabled on
+    /// testnet, off on mainnet.
+    pub allow_relay: bool,
 }
 
 /// `Config` holds the operator private key, so `Debug` must never print it. A derived `Debug` would
@@ -64,6 +68,7 @@ impl std::fmt::Debug for Config {
             .field("operator_key", &self.operator_key.as_ref().map(|_| "<redacted>"))
             .field("x402_pay_to", &self.x402_pay_to)
             .field("x402_allow_facilitator", &self.x402_allow_facilitator)
+            .field("allow_relay", &self.allow_relay)
             .finish()
     }
 }
@@ -115,6 +120,9 @@ impl Config {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(900),
             x402_allow_facilitator: std::env::var("X402_ALLOW_FACILITATOR")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false),
+            allow_relay: std::env::var("ALLOW_RELAY")
                 .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .unwrap_or(false),
         })

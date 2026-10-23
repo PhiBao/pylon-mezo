@@ -105,6 +105,7 @@ export const pylonEngineAbi = parseAbi([
   'function previewMusdIn(uint256 btcOut) view returns (uint256)',
   // execution
   'function createPosition(address owner) returns (address position)',
+  'event PositionCreated(address indexed owner, address indexed position)',
   'function loopSigned((address owner, uint256 debtAmount, uint256 collAdd, address outputTo, uint256 minPostICR, uint256 deadline, address upperHint, address lowerHint, bytes signature) r) returns (uint256 btcOut, uint256 feeMusd)',
   'function unwindSigned((address owner, uint256 repayAmount, uint256 collOut, address outputTo, uint256 minPostICR, uint256 deadline, address upperHint, address lowerHint, bytes signature) r) returns (uint256 musdOut, uint256 btcToOwner)',
   'function closeSigned((address owner, address outputTo, uint256 deadline, bytes signature) r) returns (uint256 btcToOwner, uint256 feeMusd)',

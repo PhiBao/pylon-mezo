@@ -7,7 +7,7 @@ use alloy_primitives::{Address, U256};
 use axum::extract::{ConnectInfo, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use tower_http::cors::{Any, CorsLayer};
@@ -29,6 +29,8 @@ pub struct AppState {
     pub paid_limiter: Arc<RateLimiter>,
     /// Read endpoints are cheap to serve but still hit the RPC layer.
     pub read_limiter: Arc<RateLimiter>,
+    /// The relay spends the operator's gas, so it is budgeted separately and tightly.
+    pub relay_limiter: Arc<RateLimiter>,
 }
 
 pub fn router(state: AppState) -> Router {
@@ -45,6 +47,9 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/quote/exit", get(quote_exit))
         .route("/api/v1/hints", get(hints))
         .route("/api/v1/proofs", get(proofs))
+        .route("/api/v1/execute/loop", post(execute_loop))
+        .route("/api/v1/execute/unwind", post(execute_unwind))
+        .route("/api/v1/execute/exit", post(execute_exit))
         .route("/api/v1/x402/trove-report/:address", get(x402_report).post(x402_report))
         .layer(CorsLayer::new().allow_origin(Any).allow_headers(Any).allow_methods(Any))
         .with_state(state)
@@ -656,6 +661,246 @@ async fn settle_with_facilitator(
         .or_else(|| settle.get("txHash"))
         .and_then(|t| t.as_str())
         .map(|t| t.to_string())
+}
+
+
+// ---------------------------------------------------------------------------
+// relay: a signed trove action, submitted by the operator so the user needs no gas
+// ---------------------------------------------------------------------------
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LoopRelay {
+    owner: String,
+    debt_amount: String,
+    coll_add: String,
+    signature: String,
+    deadline: Option<u64>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UnwindRelay {
+    owner: String,
+    repay: String,
+    coll_out: Option<String>,
+    signature: String,
+    deadline: Option<u64>,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ExitRelay {
+    owner: String,
+    signature: String,
+    deadline: Option<u64>,
+}
+
+fn relay_guard(state: &AppState, peer: std::net::SocketAddr) -> Option<axum::response::Response> {
+    if !state.config.allow_relay {
+        return Some(
+            (
+                StatusCode::FORBIDDEN,
+                Json(serde_json::json!({
+                    "error": "relay disabled on this deployment",
+                    "detail": "Set ALLOW_RELAY=1 to let this service pay gas for signed trove actions."
+                })),
+            )
+                .into_response(),
+        );
+    }
+    if !state.relay_limiter.allow(peer.ip()) {
+        return Some(
+            (
+                StatusCode::TOO_MANY_REQUESTS,
+                Json(serde_json::json!({ "error": "relay rate limited", "detail": "Retry after the window." })),
+            )
+                .into_response(),
+        );
+    }
+    None
+}
+
+fn parse_signature(sig: &str) -> anyhow::Result<Vec<u8>> {
+    let hex = sig.trim().trim_start_matches("0x");
+    let bytes = hex::decode(hex).map_err(|_| anyhow::anyhow!("signature is not hex"))?;
+    if bytes.len() != 65 {
+        anyhow::bail!("signature must be 65 bytes");
+    }
+    Ok(bytes)
+}
+
+fn decimal(value: &str, what: &str) -> anyhow::Result<U256> {
+    U256::from_str_radix(value.trim(), 10)
+        .map_err(|_| anyhow::anyhow!("{what} is not a decimal integer"))
+}
+
+fn relay_deadline(requested: Option<u64>) -> U256 {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let deadline = requested.unwrap_or(now + 1_800);
+    U256::from(deadline)
+}
+
+async fn relay_response(
+    state: &AppState,
+    calldata: Vec<u8>,
+) -> axum::response::Response {
+    let Some(key) = state.config.operator_key.clone() else {
+        return (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(serde_json::json!({ "error": "operator key not configured; the relay cannot pay gas" })),
+        )
+            .into_response();
+    };
+    match state
+        .mezo
+        .send(&key, state.mezo.c.engine, U256::ZERO, calldata)
+        .await
+    {
+        Ok((hash, _receipt)) => Json(serde_json::json!({
+            "txHash": format!("{hash:#x}"),
+            "explorerUrl": format!("{}/tx/{hash:#x}", state.config.explorer),
+        }))
+        .into_response(),
+        Err(e) => error_response(e).into_response(),
+    }
+}
+
+/// Relays `PylonFlashEngine.loopSigned` for a user who signed the trove adjustment themselves. The
+/// operator pays the gas; the engine still verifies the user's signature on chain, so the relay can
+/// never move anything the owner did not authorise.
+async fn execute_loop(
+    State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<std::net::SocketAddr>,
+    Json(req): Json<LoopRelay>,
+) -> axum::response::Response {
+    if let Some(blocked) = relay_guard(&state, peer) {
+        return blocked;
+    }
+    let owner: Address = match req.owner.trim().parse() {
+        Ok(a) => a,
+        Err(_) => return bad_request("invalid owner address"),
+    };
+    let debt = match decimal(&req.debt_amount, "debtAmount") {
+        Ok(v) => v,
+        Err(e) => return bad_request(&e.to_string()),
+    };
+    let coll_add = match decimal(&req.coll_add, "collAdd") {
+        Ok(v) => v,
+        Err(e) => return bad_request(&e.to_string()),
+    };
+    if debt.is_zero() || coll_add.is_zero() {
+        return bad_request("debtAmount and collAdd must be non-zero");
+    }
+    let signature = match parse_signature(&req.signature) {
+        Ok(v) => v,
+        Err(e) => return bad_request(&e.to_string()),
+    };
+    let trove = match state.mezo.trove(owner, None).await {
+        Ok(t) => t,
+        Err(e) => return error_response(e).into_response(),
+    };
+    if !trove.exists {
+        return bad_request("that address has no active Mezo trove");
+    }
+    let coll_now = U256::from_str_radix(trove.coll.trim(), 10).unwrap_or(U256::ZERO);
+    let debt_now = U256::from_str_radix(trove.debt.trim(), 10).unwrap_or(U256::ZERO);
+    let hints = state
+        .mezo
+        .hints(coll_now + coll_add, debt_now + debt)
+        .await
+        .unwrap_or(crate::mezo::Hints {
+            upper: "0x0000000000000000000000000000000000000000".into(),
+            lower: "0x0000000000000000000000000000000000000000".into(),
+        });
+    let calldata = state.mezo.loop_calldata(
+        &hints,
+        owner,
+        debt,
+        coll_add,
+        owner,
+        U256::ZERO,
+        relay_deadline(req.deadline),
+        signature,
+    );
+    relay_response(&state, calldata).await
+}
+
+/// Relays `unwindSigned`: repay debt out of the trove's own collateral.
+async fn execute_unwind(
+    State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<std::net::SocketAddr>,
+    Json(req): Json<UnwindRelay>,
+) -> axum::response::Response {
+    if let Some(blocked) = relay_guard(&state, peer) {
+        return blocked;
+    }
+    let owner: Address = match req.owner.trim().parse() {
+        Ok(a) => a,
+        Err(_) => return bad_request("invalid owner address"),
+    };
+    let repay = match decimal(&req.repay, "repay") {
+        Ok(v) => v,
+        Err(e) => return bad_request(&e.to_string()),
+    };
+    if repay.is_zero() {
+        return bad_request("repay must be non-zero");
+    }
+    let coll_out = match req.coll_out.as_deref() {
+        Some(v) => match decimal(v, "collOut") {
+            Ok(x) => x,
+            Err(e) => return bad_request(&e.to_string()),
+        },
+        None => match state.mezo.preview_unwind_btc_in(repay).await {
+            Ok(btc_in) => btc_in + btc_in / U256::from(20u64),
+            Err(e) => return error_response(e).into_response(),
+        },
+    };
+    let signature = match parse_signature(&req.signature) {
+        Ok(v) => v,
+        Err(e) => return bad_request(&e.to_string()),
+    };
+    let calldata = state.mezo.unwind_calldata(
+        &crate::mezo::Hints {
+            upper: "0x0000000000000000000000000000000000000000".into(),
+            lower: "0x0000000000000000000000000000000000000000".into(),
+        },
+        owner,
+        repay,
+        coll_out,
+        owner,
+        U256::ZERO,
+        relay_deadline(req.deadline),
+        signature,
+    );
+    relay_response(&state, calldata).await
+}
+
+/// Relays `closeSigned`: close the trove, funded by its own collateral.
+async fn execute_exit(
+    State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<std::net::SocketAddr>,
+    Json(req): Json<ExitRelay>,
+) -> axum::response::Response {
+    if let Some(blocked) = relay_guard(&state, peer) {
+        return blocked;
+    }
+    let owner: Address = match req.owner.trim().parse() {
+        Ok(a) => a,
+        Err(_) => return bad_request("invalid owner address"),
+    };
+    let signature = match parse_signature(&req.signature) {
+        Ok(v) => v,
+        Err(e) => return bad_request(&e.to_string()),
+    };
+    let deadline = relay_deadline(req.deadline);
+    let calldata = state
+        .mezo
+        .close_calldata(owner, owner, deadline, signature);
+    relay_response(&state, calldata).await
 }
 
 // ---------------------------------------------------------------------------

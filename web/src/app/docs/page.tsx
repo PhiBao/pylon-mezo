@@ -29,7 +29,29 @@ export default function DocsPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 border-b border-rule xl:border-b-0 xl:border-r">
-          <Section anchor="redemption" title="1 · The mechanic that makes this necessary">
+          <Section anchor="market" title="1 · The market it serves">
+            <p>
+              Pylon is a primitive for the <strong>MUSD economy</strong>, not a single pair. Mezo mainnet
+              lists <strong>33 MUSD pairs</strong> — Bitcoin, mUSDC, mUSDT, WUSD, sUSDat, mSolvBTC, and the
+              tokenised-equity pairs (MSTR, COIN, TSLA, NVDA, GOOGL, CRCL, BTDR) that make Mezo different.
+              Every one of them has the same problem: a borrowed position is static, and the redemption
+              queue does not care how healthy the system looks on average.
+            </p>
+            <p>
+              The numbers that matter are the ratio between redemption pressure and the borrower base.
+              At the time of writing the queue carries <strong>≈429M MUSD</strong> of depth against
+              <strong> 294 troves</strong> on testnet and a mainnet borrower base that is still counted in
+              single digits. The shield is priced against that gap: the queue is deep, the tooling to get
+              out of its way is thin.
+            </p>
+            <p>
+              The engine takes its flash and swap venues as constructor arguments, so serving a new MUSD
+              pair is a deployment, not a rewrite. That is the expansion path: start with BTC, then the
+              equity pairs whose holders have the same redemption risk and no equivalent tool.
+            </p>
+          </Section>
+
+          <Section anchor="redemption" title="2 · The mechanic that makes this necessary">
             <p>
               Mezo&apos;s redemption works like Liquity&apos;s: a holder of MUSD can always exchange it for $1 of BTC
               from the protocol, taken from the trove with the lowest collateralisation ratio that is still above the
@@ -57,7 +79,7 @@ export default function DocsPage() {
             </div>
           </Section>
 
-          <Section anchor="operations" title="2 · Three operations, one mechanism">
+          <Section anchor="operations" title="3 · Three operations, one mechanism">
             <p>
               Each operation borrows MUSD from a Tigris flash pool, uses it for one leg, and settles the loan before
               the transaction returns. Nothing needs to be sitting in the wallet, and a failure at any leg reverts the
@@ -86,7 +108,7 @@ export default function DocsPage() {
             </div>
           </Section>
 
-          <Section anchor="shield" title="3 · The redemption shield">
+          <Section anchor="shield" title="4 · The redemption shield">
             <p>
               Operations are reactive: they fix a position after the fact. The shield is the proactive half. A Pylon
               position stores a policy — an ICR trigger, an ICR target and a per-call ceiling — and a MUSD reserve
@@ -129,7 +151,7 @@ export default function DocsPage() {
             ) : null}
           </Section>
 
-          <Section anchor="fees" title="4 · What an operation costs">
+          <Section anchor="fees" title="5 · What an operation costs">
             <p>
               Fees are charged on the flashed notional, not on the borrowed balance, so a loop on a trove with no
               MUSD in the wallet costs a fraction of a percent of the amount it moves.
@@ -162,7 +184,7 @@ export default function DocsPage() {
             </p>
           </Section>
 
-          <Section anchor="security" title="5 · Security model">
+          <Section anchor="security" title="6 · Security model">
             <ul className="flex flex-col gap-2">
               <li>
                 <span className="text-ink">No custody, no rehypothecation.</span> Pylon never holds collateral or MUSD
@@ -202,7 +224,7 @@ export default function DocsPage() {
             </ul>
           </Section>
 
-          <Section anchor="api" title="6 · API surface">
+          <Section anchor="api" title="7 · API surface">
             <p>
               The terminal is a static bundle: it talks to the engine service at{' '}
               <span className="figure text-ink">{API_BASE}</span> and falls back to direct chain reads when that

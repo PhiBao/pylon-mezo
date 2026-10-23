@@ -130,6 +130,19 @@ rescue can only ever reach funds that were sent by mistake.
 `position.claimCollateralSurplus()` releases the collateral Mezo owes the trove, to the owner once the
 reserve's claim is settled.
 
+## 4b. The execute relay (`ALLOW_RELAY`)
+
+`POST /api/v1/execute/{loop,unwind,exit}` submits an action the **user signed** with the operator key, so
+the user needs no gas. The engine verifies the user's signature on chain, so the relay can never move
+anything the owner did not authorise — but it *does* spend the operator's balance for anyone holding a
+valid signature for their own trove. That is a faucet.
+
+* Testnet: `ALLOW_RELAY=1` (the default in `server/.env`).
+* Mainnet: keep it at `0`. The endpoint answers 403 and the terminal self-broadcasts from the user's
+  wallet instead.
+
+The relay is rate-limited separately (10 requests per minute per client) because it costs gas.
+
 ## 5. Pointing the service and the terminal at mainnet
 
 The judge-facing terminal stays on testnet. A mainnet instance is a second configuration, not a
