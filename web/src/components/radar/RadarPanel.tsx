@@ -59,11 +59,11 @@ export function RadarPanel({ limit, connectedAddress }: { limit: number; connect
       meta={
         <>
           {payload ? (
-            <>
+            <span className="hidden items-center gap-2 md:flex">
               <Badge tone="neutral">TCR {fmtWadPct(payload.tcrWad)}</Badge>
               <Badge tone="neutral">{fmtInt(payload.totalTroves)} troves</Badge>
               <Badge tone="neutral">{fmtCompact(payload.redemptionQueueDepthMusd)} MUSD queue</Badge>
-            </>
+            </span>
           ) : null}
           <Badge tone={radar.data?.source === 'engine' ? 'emerald' : 'caution'}>
             {radar.data?.source === 'engine' ? 'Engine API' : 'RPC walk'}

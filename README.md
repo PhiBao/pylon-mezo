@@ -322,8 +322,11 @@ state-changing flows are exercised through the Rust engine rather than through a
 
 **Hosted:** <https://pylon-mezo-api.fly.dev> — the same service on Fly.io (`fly.toml`, `Dockerfile` at
 the repo root). The terminal's build points at it with `NEXT_PUBLIC_API_BASE`, which is why the live
-header reads `ENGINE API` rather than `RPC READ-ONLY`. Redeploy with `fly deploy`; the machine suspends
-when idle and wakes on the first request.
+header reads `ENGINE API` rather than `RPC READ-ONLY`. Redeploy with `fly deploy`. The service scales
+to zero with **suspend**: an idle machine costs only volume storage, and the first request resumes it
+in **~1.2 s** (measured on 2026-11-02, `/health` 1.24 s and `/api/v1/radar` 1.09 s from suspended).
+The terminal treats a cold engine as a normal fallback — direct RPC reads — and reconnects on the next
+poll, so a wake-up never blocks the page.
 
 ```bash
 cd server

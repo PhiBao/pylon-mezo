@@ -10,6 +10,7 @@ use axum::response::IntoResponse;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 use tower_http::cors::{Any, CorsLayer};
 
 use crate::config::Config;
@@ -748,9 +749,20 @@ fn relay_deadline(requested: Option<u64>) -> U256 {
     U256::from(deadline)
 }
 
+/// What to write into the proof ledger once a relayed transaction lands. Without it the terminal's
+/// ledger would omit every execution that arrived through the relay, which is the default route.
+#[derive(Clone)]
+struct RelayLog {
+    kind: &'static str,
+    note: String,
+    musd: String,
+    btc: String,
+}
+
 async fn relay_response(
     state: &AppState,
     calldata: Vec<u8>,
+    log: Option<RelayLog>,
 ) -> axum::response::Response {
     let Some(key) = state.config.operator_key.clone() else {
         return (
@@ -764,11 +776,35 @@ async fn relay_response(
         .send(&key, state.mezo.c.engine, U256::ZERO, calldata)
         .await
     {
-        Ok((hash, _receipt)) => Json(serde_json::json!({
-            "txHash": format!("{hash:#x}"),
-            "explorerUrl": format!("{}/tx/{hash:#x}", state.config.explorer),
-        }))
-        .into_response(),
+        Ok((hash, receipt)) => {
+            if let Some(entry) = log {
+                let actor = state.config.operator_address().unwrap_or(Address::ZERO);
+                let url = state.config.explorer_tx(&format!("{hash:#x}"));
+                if let Err(error) = state
+                    .store
+                    .record(
+                        entry.kind,
+                        hash,
+                        url,
+                        actor,
+                        entry.note,
+                        entry.musd,
+                        entry.btc,
+                        "0".into(),
+                        receipt.block(),
+                        receipt.gas_used.clone(),
+                    )
+                    .await
+                {
+                    warn!(%error, "relayed transaction landed but its proof was not recorded");
+                }
+            }
+            Json(serde_json::json!({
+                "txHash": format!("{hash:#x}"),
+                "explorerUrl": format!("{}/tx/{hash:#x}", state.config.explorer),
+            }))
+            .into_response()
+        }
         Err(e) => error_response(e).into_response(),
     }
 }
@@ -828,13 +864,19 @@ async fn execute_loop(
         None => U256::ZERO,
     };
     let deadline = relay_deadline(req.deadline);
+    let relay_log = RelayLog {
+        kind: "flash-loop",
+        note: format!("relayed loop on {owner:#x}: +{debt} MUSD debt, +{coll_add} wei collateral"),
+        musd: debt.to_string(),
+        btc: coll_add.to_string(),
+    };
     if state.mezo.is_position(owner).await.unwrap_or(false) {
         // A position is an EIP-1167 clone whose owner authorises the engine (`canExecute`), so the
         // relay key drives it directly — no EIP-712 ballot exists for a contract trove.
         let calldata = state
             .mezo
             .loop_position_calldata(owner, debt, coll_add, &hints, min_post_icr, deadline);
-        return relay_response(&state, calldata).await;
+        return relay_response(&state, calldata, Some(relay_log)).await;
     }
     let calldata = state.mezo.loop_calldata(
         &hints,
@@ -846,7 +888,7 @@ async fn execute_loop(
         deadline,
         signature,
     );
-    relay_response(&state, calldata).await
+    relay_response(&state, calldata, Some(relay_log)).await
 }
 
 /// Relays `unwindSigned`: repay debt out of the trove's own collateral.
@@ -895,16 +937,22 @@ async fn execute_unwind(
         upper: "0x0000000000000000000000000000000000000000".into(),
         lower: "0x0000000000000000000000000000000000000000".into(),
     };
+    let relay_log = RelayLog {
+        kind: "flash-unwind",
+        note: format!("relayed unwind on {owner:#x}: repay {repay} MUSD, release {coll_out} wei"),
+        musd: repay.to_string(),
+        btc: coll_out.to_string(),
+    };
     if state.mezo.is_position(owner).await.unwrap_or(false) {
         let calldata = state
             .mezo
             .unwind_position_calldata(owner, repay, coll_out, &hints, min_post_icr, deadline);
-        return relay_response(&state, calldata).await;
+        return relay_response(&state, calldata, Some(relay_log)).await;
     }
     let calldata = state
         .mezo
         .unwind_calldata(&hints, owner, repay, coll_out, owner, min_post_icr, deadline, signature);
-    relay_response(&state, calldata).await
+    relay_response(&state, calldata, Some(relay_log)).await
 }
 
 /// Relays `closeSigned`: close the trove, funded by its own collateral.
@@ -925,14 +973,20 @@ async fn execute_exit(
         Err(e) => return bad_request(&e.to_string()),
     };
     let deadline = relay_deadline(req.deadline);
+    let relay_log = RelayLog {
+        kind: "flash-exit",
+        note: format!("relayed exit on {owner:#x}: trove closed and residual BTC returned"),
+        musd: "0".into(),
+        btc: "0".into(),
+    };
     if state.mezo.is_position(owner).await.unwrap_or(false) {
         let calldata = state.mezo.close_position_calldata(owner, owner, deadline);
-        return relay_response(&state, calldata).await;
+        return relay_response(&state, calldata, Some(relay_log)).await;
     }
     let calldata = state
         .mezo
         .close_calldata(owner, owner, deadline, signature);
-    relay_response(&state, calldata).await
+    relay_response(&state, calldata, Some(relay_log)).await
 }
 
 // ---------------------------------------------------------------------------

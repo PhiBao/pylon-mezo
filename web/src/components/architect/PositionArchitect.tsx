@@ -19,6 +19,14 @@ import { ShieldControls } from './ShieldControls'
 import { UnwindControls } from './UnwindControls'
 import type { ArchitectSharedProps } from './types'
 
+/** One visible line per mode: the tabs say what exists, this says what it does. */
+const MODE_HELP: Record<ArchitectMode, string> = {
+  loop: 'Borrow against the trove and buy BTC with it — one transaction, one signature.',
+  unwind: 'Repay debt by selling part of the trove’s own collateral. No MUSD up front.',
+  exit: 'Close the trove entirely and take the remaining BTC.',
+  shield: 'Let the reserve repay your debt before a redemption reaches the trove.',
+}
+
 /**
  * Right column: the Position Architect.
  *
@@ -88,6 +96,7 @@ export function PositionArchitect({ connectedAddress }: { connectedAddress: stri
             { value: 'shield', label: 'Shield', hint: 'Reserve-funded defence against redemptions' },
           ]}
         />
+        <p className="figure text-label leading-relaxed text-ink-3">{MODE_HELP[mode]}</p>
       </div>
 
       <div className="flex flex-col gap-2 border-b border-rule px-3 py-2.5">
@@ -154,30 +163,74 @@ export function PositionArchitect({ connectedAddress }: { connectedAddress: stri
               ) : null}
 
               {!owner && !trove.isLoading ? (
-                <div className="flex flex-col gap-3 px-3 py-3">
-                  <StateBlock
-                    state="empty"
-                    title="No trove selected"
-                    detail="Connect the wallet that owns the Mezo trove you want to operate on, or start from the five cheapest-to-redeem positions on the queue:"
-                  />
-                  <ul className="flex flex-col">
-                    {(radar.data?.value.tail ?? radar.progress?.rows ?? []).slice(0, 5).map((row) => (
-                      <li key={row.address}>
+                <div className="flex flex-col gap-4 px-3 py-3">
+                  <div className="flex flex-col gap-2">
+                    <span className="etched">Start here</span>
+                    <ol className="flex flex-col gap-2 text-body text-ink-2">
+                      <li className="flex gap-2">
+                        <span className="figure text-amber">01</span>
+                        <span>
+                          <span className="text-ink">Pick a trove.</span> Use your own, paste any owner, or
+                          take the cheapest to redeem.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="figure text-amber">02</span>
+                        <span>
+                          <span className="text-ink">Size the move.</span> The x-ray prices every leg before
+                          anything is signed.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="figure text-amber">03</span>
+                        <span>
+                          <span className="text-ink">Sign once.</span> The engine relays it; the trove stays
+                          yours.
+                        </span>
+                      </li>
+                    </ol>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {connectedAddress ? (
                         <button
                           type="button"
-                          onClick={() => focusTrove(row)}
-                          className="flex w-full items-baseline justify-between gap-3 border-b border-rule py-2 text-left transition-colors hover:bg-raised"
+                          className="btn border-amber/60 text-amber"
+                          onClick={() => setTargetOwner(connectedAddress)}
                         >
-                          <span className="figure text-meta text-ink-3">#{row.rank}</span>
-                          <span className="figure text-meta text-ink">{shortAddress(row.address, 5)}</span>
-                          <span className="figure text-meta text-vermilion">{fmtWadPct(row.icrWad)}</span>
-                          <span className="figure text-meta text-ink-3">
-                            {fmtCompact(row.redemptionBufferMusd)} ahead
-                          </span>
+                          Use my wallet&rsquo;s trove
                         </button>
-                      </li>
-                    ))}
-                  </ul>
+                      ) : null}
+                      {(() => {
+                        const first = (radar.data?.value.tail ?? radar.progress?.rows ?? [])[0]
+                        return first ? (
+                          <button type="button" className="btn btn-quiet" onClick={() => focusTrove(first)}>
+                            Pick the cheapest
+                          </button>
+                        ) : null
+                      })()}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <span className="etched pb-1">Cheapest to redeem</span>
+                    <ul className="flex flex-col">
+                    {(radar.data?.value.tail ?? radar.progress?.rows ?? []).slice(0, 5).map((row) => (
+                        <li key={row.address}>
+                          <button
+                            type="button"
+                            onClick={() => focusTrove(row)}
+                            className="flex w-full items-baseline justify-between gap-3 border-b border-rule py-2 text-left transition-colors hover:bg-raised"
+                          >
+                            <span className="figure text-meta text-ink-3">#{row.rank}</span>
+                            <span className="figure text-meta text-ink">{shortAddress(row.address, 5)}</span>
+                            <span className="figure text-meta text-vermilion">{fmtWadPct(row.icrWad)}</span>
+                            <span className="figure text-meta text-ink-3">
+                              {fmtCompact(row.redemptionBufferMusd)} ahead
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 </div>
               ) : null}
 

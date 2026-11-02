@@ -1148,6 +1148,28 @@ contract PylonTest is Test {
         assertEq(address(engine.positionImplementation()), address(next), "applied after the delay");
     }
 
+    /// A depositor can never withdraw more than they put in when the pool has no loans or fees.
+    function testFuzz_reserveRoundTripNeverMintsValue(uint256 assets) public {
+        assets = bound(assets, 1e18, 5_000_000e18);
+        PylonReserve fresh = new PylonReserve(owner, OZIERC20(address(musd)));
+
+        musd.mint(alice, assets);
+        vm.startPrank(alice);
+        musd.approve(address(fresh), assets);
+        uint256 shares = fresh.deposit(assets, alice);
+        uint256 out = fresh.withdraw(shares, alice, alice);
+        vm.stopPrank();
+
+        assertLe(out, assets, "withdraw cannot exceed the deposit");
+        assertEq(out, assets, "an idle round trip is exact");
+    }
+
+    /// The origination fee rounds up: a dust flash still pays at least one wei.
+    function testFuzz_feeReportNeverRoundsToZero(uint256 amount) public {
+        amount = bound(amount, 1, 1e30);
+        assertGe(engine.feeReport(amount), 1, "fee must not truncate to zero");
+    }
+
     // ---------------------------------------------------------------------
     // Escape routes: the funds must always be reachable
     // ---------------------------------------------------------------------

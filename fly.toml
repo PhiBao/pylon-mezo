@@ -30,9 +30,13 @@ primary_region = "fra"
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = false
+  # Scale to zero with suspend: the machine's memory is snapshotted and resumed on the next
+  # request, so an idle app costs only volume storage while the first request still lands in ~1s.
+  # The terminal treats a cold engine as a normal fallback (direct RPC reads) and reconnects on the
+  # next poll, so a wake-up never blocks the product.
+  auto_stop_machines = "suspend"
   auto_start_machines = true
-  min_machines_running = 1
+  min_machines_running = 0
 
   [http_service.concurrency]
     type = "requests"

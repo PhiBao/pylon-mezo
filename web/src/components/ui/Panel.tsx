@@ -17,8 +17,8 @@ export function Panel({
   return (
     <section className={`plate flex min-w-0 flex-col ${className}`}>
       <header className="flex h-9 shrink-0 items-center justify-between gap-3 border-b border-rule px-3">
-        <span className="etched truncate">{label}</span>
-        <div className="flex shrink-0 items-center gap-2">{meta}</div>
+        <span className="etched min-w-0 truncate">{label}</span>
+        <div className="flex min-w-0 shrink items-center gap-2 overflow-hidden">{meta}</div>
       </header>
       <div className={`min-w-0 flex-1 px-3 py-3 ${bodyClassName}`}>{children}</div>
     </section>
