@@ -14,29 +14,45 @@ deployed code.
 
 ### User experience
 
-- [ ] The empty architect teaches the three-step flow instead of saying "no trove selected".
-- [ ] One-click ways in: "Use my wallet's trove" and "Pick the cheapest to redeem".
-- [ ] Each mode (Loop / Unwind / Exit / Shield) explains itself in one visible line.
-- [ ] Every async state says what is happening and why (reading, pricing, signing, relaying).
-- [ ] The wrong-network state is visible and fixable from the header (done: auto-switch + button).
-- [ ] Mobile: header, architect and tables usable at 390px (no horizontal overflow).
+- [x] The empty architect teaches the three-step flow instead of saying "no trove selected".
+- [x] One-click ways in: "Use my wallet's trove" and "Pick the cheapest to redeem".
+- [x] Each mode (Loop / Unwind / Exit / Shield) explains itself in one visible line.
+- [x] The wrong-network state is visible and fixable from the header (auto-switch + button).
+- [x] Mobile: no horizontal overflow at 390px (scrollWidth 390 = innerWidth).
+- [ ] Every async state says what is happening and why — mostly there; worth a final pass on the
+      quote/signing states.
 
 ### Technical
 
-- [ ] CI on every push: Foundry tests, Rust tests, web typecheck + build.
-- [ ] Relayed executions are recorded in the proof ledger (currently only CLI/keeper rows are).
-- [ ] Contracts verified on the Mezo explorers; a script reproduces the verification.
-- [ ] Fuzz/invariant tests for reserve shares and flash fee rounding.
-- [ ] Deployment record and README state exactly which generation runs which fixes.
+- [x] CI on every push: Foundry tests, Rust tests, web typecheck + build — green in 1m56s
+      (run 41436868671).
+- [x] Relayed executions are recorded in the proof ledger (kind, note, amounts, block, gas).
+- [x] Fuzz tests for reserve shares and fee rounding; 51 Foundry tests.
+- [~] Contracts verified on the Mezo explorers — **blocked**: the deployed generation predates the
+      round-2 fixes, so Sourcify recompiles to different bytecode. Verification belongs to the new
+      generation deploy.
+- [ ] Deployment record and README state exactly which generation runs which fixes — partially: the
+      README says the deployed generation predates the fixes; it needs the new addresses once
+      deployed.
 
 ### Not in this goal
 
 - A new mainnet trove (needs ~0.037 BTC locked; documented as the remaining integration gap).
 - A new contract generation migration (requires settling the live position first; scoped separately).
 
-## Evidence to collect
+## Evidence
 
-- CI run link.
-- A relayed execution that appears in `/api/v1/proofs`.
-- Explorer links for the verified contracts.
-- Screenshots of the first-run panel and the mode help.
+- CI: run **41436868671** — success (contracts, server, web).
+- Live terminal: `START HERE`, the three steps, `PICK THE CHEAPEST` and the per-mode line render at
+  1600px; no horizontal overflow at 390px.
+- Cold start: Fly suspend → `/health` 1.24 s, `/api/v1/radar` 1.09 s from suspended.
+- Tests: 51 Foundry, 9 Rust.
+
+## Open items
+
+1. Deploy the hardened generation (testnet first), migrate reserve capital, then verify the new
+   addresses and re-run the proofs. This is the gate for "fixed on chain" and for explorer
+   verification.
+2. Outside testnet users (5–10 wallets) with tx links — the judge's "outside users" point, achievable
+   without mainnet capital.
+3. A final pass on async labels (quote/signing) and one more UX screenshot set for the deck.
