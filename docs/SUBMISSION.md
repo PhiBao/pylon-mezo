@@ -62,7 +62,7 @@ programmatically.
 
 ### Tech stack
 
-Solidity 0.8.24 + Foundry (engine, reserve, EIP-1167 position template, **49 tests**), Rust (Axum + Tokio;
+Solidity 0.8.24 + Foundry (engine, reserve, EIP-1167 position template, **51 tests**), Rust (Axum + Tokio;
 `SortedTroves` indexer, flash-route solver, keeper, x402 gateway, JSON-RPC + hand-rolled ABI/EIP-712
 encoders, **9 tests**), Next.js 15 + TypeScript + wagmi/viem (static export, RPC fallback, no backend
 required), Mezo **Testnet (31611) and Mainnet (31612)** for everything on-chain.
@@ -110,7 +110,7 @@ the x402 endpoint also serve Track 2 — Access and Distribution.
 Solidity (math, access control, economics, execution trace, invariants, periphery, first principles,
 asymmetry, boundaries, numerical gaps, trust gaps, flow gaps) plus a boundary-first review of the Rust
 service, HTTP surface, x402 gateway, keeper and terminal. **35 findings (5 high, 12 medium, 13 low, 5
-informational); 32 are fixed, each with a regression test** (49 contract tests today, up from 19).
+informational); 32 are fixed, each with a regression test** (51 contract tests today, up from 19).
 A second round (Nov 2026) added 10 findings — 4 high, 3 medium, 2 low, 1 rejected — of which 7 are
 fixed and 2 accepted: see `docs/AUDIT-ROUND2.md`. Two of the
 high findings were latent defects that had made the position-mode flash legs *impossible* to execute

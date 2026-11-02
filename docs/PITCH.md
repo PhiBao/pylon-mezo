@@ -132,7 +132,7 @@ This is the piece Mezo is missing: a priced, enforceable market for redemption d
   fixed, each with a regression test.** A second round added 10 findings (4 high), 7 fixed. Two of the high findings had made the position-mode flash legs
   *impossible* to execute; one was a deposit mispricing that took up to half a later depositor's money.
   The fix is what the mainnet deposit demonstrates.
-* **49 Foundry tests** over a faithful Mezo/Tigris harness — including a mock that models Mezo's
+* **51 Foundry tests** over a faithful Mezo/Tigris harness — including a mock that models Mezo's
   unified native/ERC-20 BTC ledger, so the class of bug that hid the position-mode underflows cannot
   hide again. **9 Rust tests** with vectors cross-checked byte-for-byte against `cast` (ABI + EIP-712).
 * A Rust engine that indexes all 245 troves, solves routes and hints, runs the keeper, and settles x402

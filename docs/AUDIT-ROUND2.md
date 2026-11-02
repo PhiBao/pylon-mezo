@@ -8,7 +8,7 @@
 ## Summary
 
 Ten findings: **4 High, 3 Medium, 2 Low, 1 rejected**. Nine were valid; seven are fixed with
-regression tests, two are accepted and documented. The suite is now **49 passing Foundry tests**.
+regression tests, two are accepted and documented. The suite is now **51 passing Foundry tests**.
 
 The round started from an external hunter's report on `claimCollateralSurplus` and a judge's review
 of the Wave 1 submission. Both were reproduced. Two further issues were found during the review:
