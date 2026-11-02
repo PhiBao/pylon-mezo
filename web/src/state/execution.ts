@@ -182,9 +182,9 @@ export function useAtomicExecution(): AtomicExecution {
         const deadline = deadlineFromNow()
 
         if (route === 'engine') {
-          // The relay submits with `outputTo = owner`, so the ballot names the borrower as the
-          // recipient. Positions ignore the signature (their owner authorises the engine), native
-          // troves verify it against exactly these fields.
+          // The ballot names the ENGINE as recipient: the engine calls
+          // `adjustTroveWithSignature(..., recipient = address(this))`, so that is the field the
+          // signature commits to. `outputTo` is a calldata argument, not part of the signed struct.
           const minPostIcr = minPostIcrFrom(input.targetIcrWad)
           const intent: LoopIntent = {
             owner: input.owner,
@@ -194,7 +194,7 @@ export function useAtomicExecution(): AtomicExecution {
             deadline,
             nonce: await readNonce(input.owner),
             hints: input.hints,
-            recipient: input.owner,
+            recipient: DEPLOYED.engine,
           }
           setState({ stage: 'signing', label })
           const signature = await signTyped(loopTypedData(intent))
@@ -270,7 +270,7 @@ export function useAtomicExecution(): AtomicExecution {
               upper: '0x0000000000000000000000000000000000000000',
               lower: '0x0000000000000000000000000000000000000000',
             },
-            recipient: input.owner,
+            recipient: DEPLOYED.engine,
           }
           setState({ stage: 'signing', label })
           const signature = await signTyped(unwindTypedData(intent))
@@ -339,7 +339,7 @@ export function useAtomicExecution(): AtomicExecution {
             owner: input.owner,
             deadline,
             nonce: await readNonce(input.owner),
-            recipient: input.owner,
+            recipient: DEPLOYED.engine,
           }
           setState({ stage: 'signing', label })
           const signature = await signTyped(exitTypedData(intent))
