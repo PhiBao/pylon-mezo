@@ -98,16 +98,17 @@ export const MAINNET_DEPLOYED = {
  * backend at all (`readConfigFromRpc` additionally verifies that code exists at the engine address,
  * so a stale snapshot fails loudly instead of sending a transaction nowhere).
  *
- * Four engine generations exist on testnet. v1 parked repayment MUSD at
+ * Five engine generations exist on testnet. v1 parked repayment MUSD at
  * BorrowerOperationsSignatures (wrong caller); v2 fixed the caller semantics; v3 added per-leg stage
- * guards; v4 passes solver-computed SortedTroves hints into positions so the nested call no longer
- * pays for on-chain hint resolution. v4 is the address used everywhere in this terminal.
+ * guards; v4 passes solver-computed SortedTroves hints into positions; v6 (this address) carries the
+ * round-2 hardening: surplus blocked while a reserve loan is open, borrowing-capacity and Recovery
+ * Mode pre-checks, timelocked reserve/implementation admin, and recoverable MUSD sent by mistake.
  */
 export const TESTNET_DEPLOYED = {
   chainId: MEZO_TESTNET_ID,
-  engine: getAddress('0x901198cD4EE9086997D839401f361518cAE46ed6'),
-  reserve: getAddress('0x53a0206A307E084AdA2eB24346463cf4E14C5131'),
-  positionImplementation: getAddress('0x0e64B682Add80A61d24E61ed360b3F3679C6860a'),
+  engine: getAddress('0xa1780be8f3c6e07714F51e5063839D6a6c61EE0b'),
+  reserve: getAddress('0xAC8239Ca9eE97c7aB044447063aC77ddC4E8Bb31'),
+  positionImplementation: getAddress('0xe22fB3036840d41A96612BA1686EBeaCe1b7141D'),
   musd: getAddress('0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503'),
   btc: getAddress('0x7b7C000000000000000000000000000000000000'),
   flashPool: getAddress('0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e'),

@@ -1069,6 +1069,16 @@ contract PylonTest is Test {
         assertEq(PylonPosition(payable(position)).reserveDebt(), 0, "position mirror was cleared");
     }
 
+    /// MUSD sent to a position by mistake must be recoverable while no reserve loan is open.
+    function test_sweep_recoversMUSDWhenNoReserveLoan() public {
+        address position = engine.createPosition(bob);
+        musd.mint(position, 100e18);
+
+        vm.prank(bob);
+        PylonPosition(payable(position)).sweep(address(musd), bob);
+        assertEq(musd.balanceOf(bob), 100e18, "owner recovered the MUSD");
+    }
+
     /// The claimed surplus is the reserve's recourse: while a defence loan is open, it cannot be
     /// paid out to the owner. This is the path the hunter reported.
     function test_claimCollateralSurplus_blockedWhileReserveDebtOpen() public {

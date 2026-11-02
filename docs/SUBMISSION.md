@@ -93,9 +93,9 @@ the x402 endpoint also serve Track 2 — Access and Distribution.
 
 ### Project readiness
 
-**Testnet, live and operating** — `PylonFlashEngine` `0x901198cD4EE9086997D839401f361518cAE46ed6`,
-`PylonReserve` `0x53a0206A307E084AdA2eB24346463cf4E14C5131`, `PylonPosition` template
-`0x0e64B682Add80A61d24E61ed360b3F3679C6860a`, a live shielded position
+**Testnet, live and operating** — `PylonFlashEngine` `0xa1780be8f3c6e07714F51e5063839D6a6c61EE0b`,
+`PylonReserve` `0xAC8239Ca9eE97c7aB044447063aC77ddC4E8Bb31`, `PylonPosition` template
+`0xe22fB3036840d41A96612BA1686EBeaCe1b7141D`, a live shielded position
 `0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326`. On the audited generation: the **position-mode flash loop**
 (`0xc1517166…`), the **position-mode unwind** (`0x4a2d139a…`), a **live shield loan** of 332.18 MUSD with
 2.70 MUSD of fees earned and a rising share price (1.002442), the claim enforced in code

@@ -469,9 +469,9 @@ curl -i http://localhost:8787/api/v1/x402/trove-report/0xe0773065977747d34e94397
 
 | Contract | Address |
 | --- | --- |
-| `PylonFlashEngine` | [`0x901198cD4EE9086997D839401f361518cAE46ed6`](https://explorer.test.mezo.org/address/0x901198cD4EE9086997D839401f361518cAE46ed6) |
-| `PylonReserve` | [`0x53a0206A307E084AdA2eB24346463cf4E14C5131`](https://explorer.test.mezo.org/address/0x53a0206A307E084AdA2eB24346463cf4E14C5131) |
-| `PylonPosition` (template) | [`0x0e64B682Add80A61d24E61ed360b3F3679C6860a`](https://explorer.test.mezo.org/address/0x0e64B682Add80A61d24E61ed360b3F3679C6860a) |
+| `PylonFlashEngine` | [`0xa1780be8f3c6e07714F51e5063839D6a6c61EE0b`](https://explorer.test.mezo.org/address/0xa1780be8f3c6e07714F51e5063839D6a6c61EE0b) |
+| `PylonReserve` | [`0xAC8239Ca9eE97c7aB044447063aC77ddC4E8Bb31`](https://explorer.test.mezo.org/address/0xAC8239Ca9eE97c7aB044447063aC77ddC4E8Bb31) |
+| `PylonPosition` (template) | [`0xe22fB3036840d41A96612BA1686EBeaCe1b7141D`](https://explorer.test.mezo.org/address/0xe22fB3036840d41A96612BA1686EBeaCe1b7141D) |
 | Shielded position (this generation) | [`0x02f472dd2c08a4dab586ab11bafb294c27f5182e`](https://explorer.test.mezo.org/address/0x02f472dd2c08a4dab586ab11bafb294c27f5182e) |
 | Reserve LPs | operator 1,005.185 MUSD (first depositor) and the demo wallet 100 MUSD (second depositor) |
 

@@ -50,9 +50,11 @@ deployed code.
 
 ## Open items
 
-1. Deploy the hardened generation (testnet first), migrate reserve capital, then verify the new
-   addresses and re-run the proofs. This is the gate for "fixed on chain" and for explorer
-   verification.
+1. ~~Deploy the hardened generation (testnet)~~ — **done**: v6 engine `0xa1780be8…`, reserve
+   `0xAC8239Ca…`, template `0xe22fB303…`. The old reserve loan was settled, its depositor capital
+   withdrawn, and 1,000 MUSD seeded into the v6 reserve. The v5 position remains on its own engine
+   as legacy (positions are bound to the engine that created them). Next: verify v6 on Sourcify and
+   run the five outside wallets.
 2. Outside testnet users (5–10 wallets) with tx links — the judge's "outside users" point, achievable
    without mainnet capital.
 3. A final pass on async labels (quote/signing) and one more UX screenshot set for the deck.

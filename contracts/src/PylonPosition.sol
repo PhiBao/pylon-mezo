@@ -244,7 +244,12 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
     /// @notice Transfers a token that is not part of the position's accounting.
     /// @dev Collateral and MUSD are guarded by the reserve claim; other tokens are free to move.
     function sweep(address token, address to) external onlyOwner {
-        if (token == address(btc) || token == address(musd)) revert ReserveDebtOutstanding();
+        if (to == address(0)) revert ZeroAddress();
+        // BTC is the trove's collateral and MUSD is the reserve's claim: neither leaves while a
+        // defence loan is open. With no loan, MUSD sent to the position by mistake is recoverable;
+        // BTC still has to go through `withdrawCollateral`, which resolves SortedTroves hints.
+        if (token == address(btc)) revert ReserveDebtOutstanding();
+        if (token == address(musd) && reserveDebt != 0) revert ReserveDebtOutstanding();
         _safeTransfer(IERC20(token), to, IERC20(token).balanceOf(address(this)));
     }
 

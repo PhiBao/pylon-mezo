@@ -1,70 +1,30 @@
 {
-  "chainId": 31611,
-  "network": "Mezo Testnet (Matsnet)",
-  "pylonFlashEngine": "0x901198cD4EE9086997D839401f361518cAE46ed6",
-  "pylonReserve": "0x53a0206A307E084AdA2eB24346463cf4E14C5131",
-  "pylonPositionImplementation": "0x0e64B682Add80A61d24E61ed360b3F3679C6860a",
-  "musd": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
-  "btc": "0x7b7C000000000000000000000000000000000000",
-  "flashPool": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
-  "swapPool": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
-  "router": "0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9",
-  "poolFactory": "0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A",
   "borrowerOps": "0xCdF7028ceAB81fA0C6971208e83fa7872994beE5",
   "borrowerOpsSignatures": "0xD757e3646AF370b15f32EB557F0F8380Df7D639e",
-  "troveManager": "0xE47c80e8c23f6B4A1aE41c34837a0599D5D16bb0",
-  "sortedTroves": "0x722E4D24FD6Ff8b0AC679450F3D91294607268fA",
-  "hintHelpers": "0x4e4cBA3779d56386ED43631b4dCD6d8EacEcBCF6",
-  "priceFeed": "0x86bCF0841622a5dAC14A313a15f96A95421b9366",
+  "btc": "0x7b7C000000000000000000000000000000000000",
+  "chainId": 31611,
   "deployer": "0x3bEe06fA351E66e298eF4DDcbE6052770775a93e",
+  "flashPool": "0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e",
+  "hintHelpers": "0x4e4cBA3779d56386ED43631b4dCD6d8EacEcBCF6",
+  "musd": "0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503",
+  "poolFactory": "0x4947243CC818b627A5D06d14C4eCe7398A23Ce1A",
+  "priceFeed": "0x86bCF0841622a5dAC14A313a15f96A95421b9366",
+  "pylonFlashEngine": "0xa1780be8f3c6e07714F51e5063839D6a6c61EE0b",
+  "pylonPositionImplementation": "0xe22fB3036840d41A96612BA1686EBeaCe1b7141D",
+  "pylonReserve": "0xAC8239Ca9eE97c7aB044447063aC77ddC4E8Bb31",
+  "router": "0x9a1ff7FE3a0F69959A3fBa1F1e5ee18e1A9CD7E9",
+  "sortedTroves": "0x722E4D24FD6Ff8b0AC679450F3D91294607268fA",
+  "swapPool": "0xd16A5Df82120ED8D626a1a15232bFcE2366d6AA9",
+  "troveManager": "0xE47c80e8c23f6B4A1aE41c34837a0599D5D16bb0",
+  "generation": "v6-hardened",
+  "previousGeneration": {
+    "engine": "0x901198cD4EE9086997D839401f361518cAE46ed6",
+    "reserve": "0x53a0206A307E084AdA2eB24346463cf4E14C5131",
+    "positionImplementation": "0x0e64B682Add80A61d24E61ed360b3F3679C6860a",
+    "note": "Round-1 audited generation. Its shielded position 0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326 remains live and is not operable through the v6 engine (positions are bound to the engine that created them)."
+  },
   "liveArtifacts": {
-    "nativeTroveOperator": "0x3bEe06fA351E66e298eF4DDcbE6052770775a93e",
-    "pylonPosition": "0xe0773065977747d34e94397fc902178709ccdc23",
-    "positionImplementationInUse": "0xCB33f3844A6D2119d2fB15B35273BBAe74673e4B",
-    "note": "The live position predates engine v4 and therefore runs the v2 position implementation, which resolves SortedTroves hints on-chain. Positions created through engine v4 use pylonPositionImplementation and accept solver hints.",
-    "shieldedPosition": "0x02f472dd2c08a4dab586ab11bafb294c27f5182e",
-    "legacyShieldedPosition": "0xe0773065977747d34e94397fc902178709ccdc23",
-    "previousGeneration": {
-      "engine": "0x94b6384F9202F27c3ab1b3b0c6f1A8b7218F45F6",
-      "reserve": "0xcc9dD7197237bbb645978D9A92872C7F82B6b881",
-      "note": "settled and drained; kept for the lineage. Its position keeps its own implementation and reserve binding, so it stays settleable."
-    },
-    "auditedShieldedPosition": "0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326",
-    "auditedGenerationProofs": {
-      "flashLoop": "0xc15171664acec23d6a6c6559b5788ef26f70bbec67738d0898993f8b9a2a4e03",
-      "flashUnwind": "0x4a2d139ab08c8582289dc019d284c0276920d64921e4693808b7b130e7d39ce0",
-      "shieldDefence": "0xa4fb80618f7ae1343517b93b9a08d88cc16a811f5dc62cec02f6667e69a96293",
-      "keeperDefence": "0x456e815b049105283943e026e55b132e54e4614f62ed235fb0351046e980b84b",
-      "state": "0.0457 BTC / 2051.35 MUSD debt / ICR 181.7% / reserve loan 332.18 MUSD / fees 2.62 MUSD / share price 1.002370"
-    }
-  },
-  "history": {
-    "engineV1": "0x0bafCB6C0F10b5F6a5e1C9f7514cB736699c9CF9",
-    "engineV1SupersededBecause": "v1 parked repayment MUSD at BorrowerOperationsSignatures. Mezo's helper forwards its own caller (the engine) as the repayment caller, so the burn happens from the engine. Observed live: transaction 0x431f0f1914756284dbef77327908b9e5d9d50da79e01ee562147c4ba320f9349 reverted with \"BorrowerOps: Caller doesnt have enough mUSD to make repayment\".",
-    "engineV2": "0x02d479B9F53ACd69c1965dBcFfaff90959E69E05",
-    "engineV3": "0xA606F63b02B14B9c51b50E1814d1c301733C139d",
-    "engineV3Added": "Stage guards: nested legs (swap, position call) are wrapped so a failure reports which leg broke and the inner revert data, instead of a bare arithmetic panic.",
-    "engineV4Added": "Passes solver-computed SortedTroves hints into positions, which validates them in-contract and falls back to HintHelpers with 12 trials instead of 40. On-chain resolution was measured at ~4.75M gas, close enough to Mezo's 10M block limit to be a reliability risk.",
-    "engineV5AuditedGeneration": {
-      "engine": "0x901198cD4EE9086997D839401f361518cAE46ed6",
-      "reserve": "0x53a0206A307E084AdA2eB24346463cf4E14C5131",
-      "positionImplementation": "0x0e64B682Add80A61d24E61ed360b3F3679C6860a",
-      "why": "The security audit (docs/AUDIT.md) found five High and twelve Medium defects. This generation carries all of them: signed payouts bound to the owner, the lien guard on addCollateral, pre-transfer deposit pricing with the ERC-4626 virtual offset, both position-mode balance deltas, an oracle-bounded exit, priced and capped shield credit, reserve captured at initialisation, engine handovers refused with live loans, bad-debt write-off, safe transfers, round-up fees.",
-      "migration": [
-        "settled the v1 claim: 543.943 MUSD (tx 0xfa77c38d35ae2b765ec26b2215094d771b3897eba1558e2be18836ebfc4cc926)",
-        "withdrew the operator's 1,000 v1 shares for 1,005.185 MUSD (tx 0xf7ceb30254b1dd527c613b6212a7a485ac44ae490d5691c78b297a0f91942afe)",
-        "re-deposited into the v2 reserve: 1,005.185 MUSD (operator, first depositor) + 100 MUSD (demo, second depositor)",
-        "created the first audited-generation position: 0x02f472dd2c08a4dab586ab11bafb294c27f5182e (0.030 BTC, ICR 1.23)"
-      ]
-    }
-  },
-  "audit": {
-    "report": "docs/AUDIT.md",
-    "findings": 35,
-    "fixed": 32,
-    "regressionTests": {
-      "contracts": 39,
-      "service": 9
-    }
+    "legacyPosition": "0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326",
+    "note": "The v6 reserve is seeded and the v6 position template includes the round-2 fixes. User positions created through v6 are recorded in docs/USERS.md."
   }
 }
