@@ -219,6 +219,11 @@ contract PylonPosition is IPylonPosition, ReentrancyGuard {
     /// @notice Claims collateral that Mezo owes this trove, for example the surplus left after a full
     ///         redemption. Anyone may call it; the proceeds follow the reserve claim first.
     function claimCollateralSurplus() external nonReentrant {
+        // The surplus is the reserve's recourse once a defence loan is open: every other outflow
+        // (withdrawCollateral, executeTroveAdjust, executeClose) is blocked while reserveDebt is
+        // non-zero, and this path must be too. Without it an owner could take the recovered BTC and
+        // leave the reserve with a claim on an empty position.
+        if (reserveDebt != 0) revert ReserveDebtOutstanding();
         uint256 before = btc.balanceOf(address(this));
         borrowerOps.claimCollateral();
         uint256 gained = btc.balanceOf(address(this)) - before;

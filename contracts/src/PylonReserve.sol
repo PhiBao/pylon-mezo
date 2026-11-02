@@ -31,6 +31,16 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     /// @notice Pylon engine allowed to register positions and report fees.
     address public engine;
 
+    /// @notice Two-step window for admin changes that move value between the reserve and its
+    ///         depositors: re-pointing the engine, and writing off a loan. A proposal is public and
+    ///         only takes effect after this delay, so depositors can leave before it lands.
+    uint256 public constant ADMIN_TIMELOCK = 2 days;
+    address public pendingEngine;
+    uint256 public engineEffectiveAt;
+    address public pendingWriteOffPosition;
+    uint256 public pendingWriteOffAmount;
+    uint256 public writeOffEffectiveAt;
+
     uint256 public totalShares;
 
     mapping(address => uint256) public shares;
@@ -88,6 +98,8 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     event LimitsUpdated(uint256 maxLendPerCall, uint256 maxLendPerPosition, uint256 utilizationCapBps);
     event ConcentrationUpdated(uint256 maxPerPositionBps, uint256 defenceFeeBps);
     event EngineUpdated(address indexed engine);
+    event EngineProposed(address indexed engine, uint256 effectiveAt);
+    event WriteOffProposed(address indexed position, uint256 amount, uint256 effectiveAt);
 
     // ---------------------------------------------------------------------
     // Errors
@@ -104,6 +116,8 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     error FeeTooHigh();
     error InsufficientLiquidity();
     error NothingToRepay();
+    error TimelockActive();
+    error NoPendingChange();
 
     constructor(address owner_, IERC20 musd_) Ownable(owner_) {
         if (address(musd_) == address(0)) revert ZeroAddress();
@@ -116,14 +130,34 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     // Governance
     // ---------------------------------------------------------------------
 
-    /// @dev A handover is refused while defence loans are outstanding. Positions read the reserve
-    ///      through the engine, so re-pointing the engine at a different reserve while loans are live
-    ///      would leave those loans unpayable and their collateral permanently locked.
+    /// @dev The first wiring happens at deployment and is immediate, or a new generation could never
+    ///      be brought up: the reserve and engine reference each other. Every later handover is a
+    ///      two-step change with a public delay, because positions read the reserve through the
+    ///      engine — re-pointing it while loans are live would strand their collateral, and even with
+    ///      no loans, a sudden switch could redirect fees or registration.
     function setEngine(address engine_) external onlyOwner {
         if (engine_ == address(0)) revert ZeroAddress();
         if (outstanding != 0) revert OutstandingLoans();
-        engine = engine_;
-        emit EngineUpdated(engine_);
+        if (engine == address(0)) {
+            engine = engine_;
+            emit EngineUpdated(engine_);
+            return;
+        }
+        pendingEngine = engine_;
+        engineEffectiveAt = block.timestamp + ADMIN_TIMELOCK;
+        emit EngineProposed(engine_, engineEffectiveAt);
+    }
+
+    /// @notice Applies a previously proposed engine handover after the delay.
+    function applyEngine() external onlyOwner {
+        address next = pendingEngine;
+        if (next == address(0)) revert NoPendingChange();
+        if (block.timestamp < engineEffectiveAt) revert TimelockActive();
+        if (outstanding != 0) revert OutstandingLoans();
+        pendingEngine = address(0);
+        engineEffectiveAt = 0;
+        engine = next;
+        emit EngineUpdated(next);
     }
 
     function setConcentration(uint256 maxPerPositionBps_, uint256 defenceFeeBps_) external onlyOwner {
@@ -289,9 +323,30 @@ contract PylonReserve is IPylonReserve, Ownable, ReentrancyGuard {
     ///         counting assets the pool no longer holds and the share price falls immediately instead
     ///         of quietly overstating every later deposit.
     ///         Governance must only call this once the trove is provably closed.
-    function writeOffLoan(address position, uint256 amount) external onlyOwner {
+    /// @notice Proposes a write-off. The loss lands on depositors, so it cannot happen in the same
+    ///         block it is decided: it is public for ADMIN_TIMELOCK, during which shares can be
+    ///         redeemed at the pre-write-off price.
+    function proposeWriteOff(address position, uint256 amount) external onlyOwner {
         uint256 loan = loans[position];
         uint256 applied = amount > loan ? loan : amount;
+        if (applied == 0) revert NothingToRepay();
+        pendingWriteOffPosition = position;
+        pendingWriteOffAmount = applied;
+        writeOffEffectiveAt = block.timestamp + ADMIN_TIMELOCK;
+        emit WriteOffProposed(position, applied, writeOffEffectiveAt);
+    }
+
+    /// @notice Applies a previously proposed write-off after the delay.
+    function applyWriteOff() external onlyOwner {
+        address position = pendingWriteOffPosition;
+        uint256 proposed = pendingWriteOffAmount;
+        if (position == address(0) || proposed == 0) revert NoPendingChange();
+        if (block.timestamp < writeOffEffectiveAt) revert TimelockActive();
+        pendingWriteOffPosition = address(0);
+        pendingWriteOffAmount = 0;
+        writeOffEffectiveAt = 0;
+        uint256 loan = loans[position];
+        uint256 applied = proposed > loan ? loan : proposed;
         if (applied == 0) revert NothingToRepay();
         loans[position] = loan - applied;
         outstanding -= applied;

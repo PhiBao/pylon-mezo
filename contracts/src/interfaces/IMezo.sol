@@ -66,6 +66,8 @@ interface ITroveManager {
             uint256 pendingInterest
         );
 
+    function getTroveMaxBorrowingCapacity(address borrower) external view returns (uint256);
+
     function getTCR(uint256 price) external view returns (uint256);
 
     function checkRecoveryMode(uint256 price) external view returns (bool);

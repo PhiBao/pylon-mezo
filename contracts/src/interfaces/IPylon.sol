@@ -16,6 +16,8 @@ interface IPylonReserve {
 
     function totalAssets() external view returns (uint256);
 
+    function outstanding() external view returns (uint256);
+
     function loans(address position) external view returns (uint256);
 }
 

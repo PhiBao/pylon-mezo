@@ -328,8 +328,25 @@ contract MockTroveManager {
         return 4e18;
     }
 
-    function checkRecoveryMode(uint256) external pure returns (bool) {
-        return false;
+    bool public recoveryMode;
+
+    function setRecoveryMode(bool value) external {
+        recoveryMode = value;
+    }
+
+    function checkRecoveryMode(uint256) external view returns (bool) {
+        return recoveryMode;
+    }
+
+    mapping(address => uint256) public borrowingCapacity;
+
+    function setMaxBorrowingCapacity(address who, uint256 value) external {
+        borrowingCapacity[who] = value;
+    }
+
+    function getTroveMaxBorrowingCapacity(address who) external view returns (uint256) {
+        uint256 configured = borrowingCapacity[who];
+        return configured == 0 ? type(uint256).max : configured;
     }
 
     function updateSystemInterest() external {}

@@ -82,6 +82,16 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     /// @notice Shield pool that receives flash fees and funds defensive repayments.
     address public override reserve;
 
+    /// @dev Same two-step rule as the reserve's own admin: a live defence loan is denominated by the
+    ///      reserve that issued it, and positions resolve `engine.reserve()` dynamically. Re-pointing
+    ///      the engine while a loan is outstanding would send the repayment to a reserve that never
+    ///      lent it and strand the original depositors.
+    uint256 public constant ADMIN_TIMELOCK = 2 days;
+    address public pendingReserve;
+    uint256 public reserveEffectiveAt;
+    address public pendingImplementation;
+    uint256 public implementationEffectiveAt;
+
     /// @notice Fallback fee recipient when no reserve is configured.
     address public treasury;
 
@@ -176,6 +186,8 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     event TreasuryUpdated(address indexed treasury);
     event ExitSlippageUpdated(uint256 maxExitSlippageBps);
     event TokenRescued(address indexed token, address indexed to, uint256 amount);
+    event ReserveProposed(address indexed reserve, uint256 effectiveAt);
+    event ImplementationProposed(address indexed implementation, uint256 effectiveAt);
 
     // ---------------------------------------------------------------------
     // Errors
@@ -195,6 +207,11 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     error TroveNotActive();
     error DebtAccountingMismatch();
     error UnsupportedPool();
+    error RecoveryMode();
+    error ExceedsBorrowingCapacity(address owner, uint256 debt, uint256 delta, uint256 capacity);
+    error OutstandingLoans();
+    error TimelockActive();
+    error NoPendingChange();
     error DeadlinePassed();
     error InsufficientDebt();
     error InvalidConfiguration();
@@ -284,8 +301,29 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     // ---------------------------------------------------------------------
 
     function setReserve(address reserve_) external onlyOwner {
-        reserve = reserve_;
-        emit ReserveUpdated(reserve_);
+        if (reserve_ == address(0)) revert ZeroAddress();
+        if (reserve == address(0)) {
+            // First wiring at deployment; the engine and reserve reference each other.
+            reserve = reserve_;
+            emit ReserveUpdated(reserve_);
+            return;
+        }
+        if (IPylonReserve(reserve).outstanding() != 0) revert OutstandingLoans();
+        pendingReserve = reserve_;
+        reserveEffectiveAt = block.timestamp + ADMIN_TIMELOCK;
+        emit ReserveProposed(reserve_, reserveEffectiveAt);
+    }
+
+    /// @notice Applies a previously proposed reserve handover after the delay.
+    function applyReserve() external onlyOwner {
+        address next = pendingReserve;
+        if (next == address(0)) revert NoPendingChange();
+        if (block.timestamp < reserveEffectiveAt) revert TimelockActive();
+        if (IPylonReserve(reserve).outstanding() != 0) revert OutstandingLoans();
+        pendingReserve = address(0);
+        reserveEffectiveAt = 0;
+        reserve = next;
+        emit ReserveUpdated(next);
     }
 
     function setTreasury(address treasury_) external onlyOwner {
@@ -302,7 +340,25 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
 
     function setPositionImplementation(address implementation) external onlyOwner {
         if (implementation == address(0)) revert ZeroAddress();
-        positionImplementation = implementation;
+        if (positionImplementation == address(0)) {
+            positionImplementation = implementation;
+            return;
+        }
+        // Existing positions keep their implementation; new clones would take this one. A public
+        // delay means a buyer can see a change before minting a position against it.
+        pendingImplementation = implementation;
+        implementationEffectiveAt = block.timestamp + ADMIN_TIMELOCK;
+        emit ImplementationProposed(implementation, implementationEffectiveAt);
+    }
+
+    /// @notice Applies a previously proposed position implementation after the delay.
+    function applyPositionImplementation() external onlyOwner {
+        address next = pendingImplementation;
+        if (next == address(0)) revert NoPendingChange();
+        if (block.timestamp < implementationEffectiveAt) revert TimelockActive();
+        pendingImplementation = address(0);
+        implementationEffectiveAt = 0;
+        positionImplementation = next;
     }
 
     /// @notice Deploys a Pylon position owned by `owner`. Anyone may create one for any address.
@@ -328,6 +384,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         _requireDeadline(r.deadline);
         if (r.debtAmount == 0 || r.collAdd == 0) revert ZeroAmount();
         _requireActiveTrove(r.owner);
+        _requireBorrowingCapacity(r.owner, r.debtAmount);
         address payoutTo = _signedPayout(r.owner, r.outputTo);
 
         feeMusd = _pylonFee(r.debtAmount);
@@ -424,6 +481,7 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
         _requirePositionExecutor(position);
         _requireDeadline(deadline);
         if (debtAmount == 0 || collAdd == 0) revert ZeroAmount();
+        _requireBorrowingCapacity(position, debtAmount);
 
         feeMusd = _pylonFee(debtAmount);
         _flash(
@@ -895,6 +953,21 @@ contract PylonFlashEngine is IPoolCallee, IPylonEngine, Ownable, ReentrancyGuard
     function _signedPayout(address owner, address requested) private view returns (address) {
         if (msg.sender != owner) return owner;
         return requested == address(0) ? owner : requested;
+    }
+
+    /// @dev Refuse a debt-increasing operation the protocol would reject anyway, with a reason the
+    ///      caller can act on. Mezo forbids new debt in Recovery Mode, and every trove carries a
+    ///      stored `maxBorrowingCapacity` that `adjustTrove` enforces — checking both before the
+    ///      flash turns a mid-callback revert into a pre-flight error.
+    function _requireBorrowingCapacity(address owner, uint256 debtDelta) private {
+        uint256 price = priceFeed.fetchPrice();
+        if (troveManager.checkRecoveryMode(price)) revert RecoveryMode();
+        troveManager.updateSystemAndTroveInterest(owner);
+        uint256 debt = troveManager.getTroveDebt(owner);
+        uint256 capacity = troveManager.getTroveMaxBorrowingCapacity(owner);
+        if (debt + debtDelta > capacity) {
+            revert ExceedsBorrowingCapacity(owner, debt, debtDelta, capacity);
+        }
     }
 
     /// @dev Calls the Mezo signature helper for a trove adjustment signed by the trove owner.

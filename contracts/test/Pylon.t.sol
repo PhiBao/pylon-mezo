@@ -159,6 +159,62 @@ contract PylonTest is Test {
         assertEq(sigOps.nonces(alice), 1, "signature nonce consumed");
     }
 
+    /// Recovery Mode forbids new debt; the engine says so before the flash instead of letting
+    /// Mezo revert inside the callback.
+    function test_loopSigned_revertsInRecoveryMode() public {
+        troveManager.setTrove(alice, 1e18, 25_000e18, 1);
+        troveManager.setRecoveryMode(true);
+        (uint256 debtDelta, ) = engine.previewLoopDebtForCollateral(0.1e18);
+
+        vm.prank(alice);
+        vm.expectRevert(PylonFlashEngine.RecoveryMode.selector);
+        engine.loopSigned(
+            PylonFlashEngine.LoopRequest({
+                owner: alice,
+                debtAmount: debtDelta,
+                collAdd: 0.1e18,
+                outputTo: alice,
+                minPostICR: 1.2e18,
+                deadline: block.timestamp + 1 hours,
+                upperHint: address(0),
+                lowerHint: address(0),
+                signature: bytes("")
+            })
+        );
+    }
+
+    /// A trove carries a stored maxBorrowingCapacity; a loop that exceeds it must be refused
+    /// before the flash, not after Mezo rejects the adjustment.
+    function test_loopSigned_revertsAboveBorrowingCapacity() public {
+        troveManager.setTrove(alice, 1e18, 25_000e18, 1);
+        troveManager.setMaxBorrowingCapacity(alice, 25_100e18);
+        (uint256 debtDelta, ) = engine.previewLoopDebtForCollateral(0.1e18);
+
+        vm.prank(alice);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                PylonFlashEngine.ExceedsBorrowingCapacity.selector,
+                alice,
+                uint256(25_000e18),
+                debtDelta,
+                uint256(25_100e18)
+            )
+        );
+        engine.loopSigned(
+            PylonFlashEngine.LoopRequest({
+                owner: alice,
+                debtAmount: debtDelta,
+                collAdd: 0.1e18,
+                outputTo: alice,
+                minPostICR: 1.2e18,
+                deadline: block.timestamp + 1 hours,
+                upperHint: address(0),
+                lowerHint: address(0),
+                signature: bytes("")
+            })
+        );
+    }
+
     function test_loopSigned_revertsWhenTroveNotActive() public {
         troveManager.setTrove(alice, 0, 0, 0);
         vm.expectRevert(PylonFlashEngine.TroveNotActive.selector);
@@ -637,7 +693,10 @@ contract PylonTest is Test {
         vm.prank(position);
         reserve.recordRepayment(100e18);
         reserve.setEngine(address(engine));
-        assertEq(reserve.engine(), address(engine));
+        assertEq(reserve.pendingEngine(), address(engine), "handover is proposed, not applied");
+        vm.warp(block.timestamp + reserve.ADMIN_TIMELOCK());
+        reserve.applyEngine();
+        assertEq(reserve.engine(), address(engine), "applied after the delay");
     }
 
     function test_reserve_concentrationCapLimitsOnePosition() public {
@@ -1002,10 +1061,91 @@ contract PylonTest is Test {
 
         // The trove is liquidated: the loan is unrecoverable, so governance writes it off.
         troveManager.setTrove(position, 0, 0, 3);
-        reserve.writeOffLoan(position, repaid);
+        reserve.proposeWriteOff(position, repaid);
+        vm.warp(block.timestamp + reserve.ADMIN_TIMELOCK());
+        reserve.applyWriteOff();
 
         assertEq(reserve.loans(position), 0, "reserve wrote the loan off");
         assertEq(PylonPosition(payable(position)).reserveDebt(), 0, "position mirror was cleared");
+    }
+
+    /// The claimed surplus is the reserve's recourse: while a defence loan is open, it cannot be
+    /// paid out to the owner. This is the path the hunter reported.
+    function test_claimCollateralSurplus_blockedWhileReserveDebtOpen() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 0.05e18}(25_000e18);
+
+        vm.startPrank(lp);
+        musd.mint(lp, 100_000e18);
+        musd.approve(address(reserve), 100_000e18);
+        reserve.deposit(100_000e18, lp);
+        vm.stopPrank();
+
+        vm.prank(bob);
+        PylonPosition(payable(position)).setShield(true, 1.75e18, 2e18, 10_000e18);
+        priceFeed.setPrice(70_000e18);
+        uint256 repaid = PylonPosition(payable(position)).defend();
+        assertGt(repaid, 0, "a defence loan exists");
+
+        vm.expectRevert(PylonPosition.ReserveDebtOutstanding.selector);
+        PylonPosition(payable(position)).claimCollateralSurplus();
+    }
+
+    /// Re-pointing the engine's reserve while a defence loan is live would send the repayment to a
+    /// reserve that never lent it. The engine must refuse exactly like the reserve refuses a handover.
+    function test_engine_setReserveRefusedWhileReserveHasLoans() public {
+        address position = engine.createPosition(bob);
+        vm.deal(bob, 5e18);
+        vm.prank(bob);
+        PylonPosition(payable(position)).openTrove{value: 0.05e18}(25_000e18);
+
+        vm.startPrank(lp);
+        musd.mint(lp, 100_000e18);
+        musd.approve(address(reserve), 100_000e18);
+        reserve.deposit(100_000e18, lp);
+        vm.stopPrank();
+
+        vm.prank(bob);
+        PylonPosition(payable(position)).setShield(true, 1.75e18, 2e18, 10_000e18);
+        priceFeed.setPrice(70_000e18);
+        assertGt(PylonPosition(payable(position)).defend(), 0, "a defence loan exists");
+
+        vm.expectRevert(PylonFlashEngine.OutstandingLoans.selector);
+        engine.setReserve(address(0xDEAD));
+    }
+
+    /// A handover with no live loans is still two-step: proposed, then applied after the public delay.
+    function test_engine_setReserveIsTwoStep() public {
+        PylonReserve next = new PylonReserve(owner, OZIERC20(address(musd)));
+
+        engine.setReserve(address(next));
+        assertEq(engine.pendingReserve(), address(next), "proposed");
+        assertEq(engine.reserve(), address(reserve), "not applied yet");
+
+        vm.expectRevert(PylonFlashEngine.TimelockActive.selector);
+        engine.applyReserve();
+
+        vm.warp(block.timestamp + engine.ADMIN_TIMELOCK());
+        engine.applyReserve();
+        assertEq(engine.reserve(), address(next), "applied after the delay");
+    }
+
+    /// The implementation used by newly created positions is timelocked too.
+    function test_engine_setImplementationIsTwoStep() public {
+        PylonPosition next = new PylonPosition();
+
+        engine.setPositionImplementation(address(next));
+        assertEq(engine.pendingImplementation(), address(next), "proposed");
+        assertEq(address(engine.positionImplementation()), address(positionImpl), "not applied yet");
+
+        vm.expectRevert(PylonFlashEngine.TimelockActive.selector);
+        engine.applyPositionImplementation();
+
+        vm.warp(block.timestamp + engine.ADMIN_TIMELOCK());
+        engine.applyPositionImplementation();
+        assertEq(address(engine.positionImplementation()), address(next), "applied after the delay");
     }
 
     // ---------------------------------------------------------------------
@@ -1132,8 +1272,10 @@ contract PylonTest is Test {
         uint256 repaid = PylonPosition(payable(position)).defend();
         assertGt(repaid, 0, "a loan is outstanding");
 
-        // the borrower disappears; governance books the loss
-        reserve.writeOffLoan(position, repaid);
+        // the borrower disappears; governance books the loss (after the public delay)
+        reserve.proposeWriteOff(position, repaid);
+        vm.warp(block.timestamp + reserve.ADMIN_TIMELOCK());
+        reserve.applyWriteOff();
         assertEq(reserve.loans(position), 0, "the reserve wrote the loan off");
         assertEq(PylonPosition(payable(position)).reserveDebt(), 0, "the position's claim is cleared");
 
