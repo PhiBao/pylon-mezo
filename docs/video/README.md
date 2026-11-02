@@ -48,6 +48,10 @@ because that is the product flow, and the connect step itself is not staged on c
 
 ## Honest notes
 
+* The narration and close card say **43 contract tests** — the count when the video was recorded.
+  After the second audit round the suite is **49**; the deck and README carry the current number.
+  Re-cutting the close card needs the `demo-video-template` project, which is not in this repo.
+
 * The execution footage was captured **before** the loop landed, so its frames read 0.0457 BTC /
   2,051.36 MUSD / 181.8% — the state the signature was authorised against. The reserve, proof and
   mainnet scenes were recorded after it, so the reserve panel shows the post-execution fee (2.70
