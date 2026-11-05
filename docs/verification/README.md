@@ -7,9 +7,33 @@ Sourcify: <https://repo.sourcify.dev/contracts/full_match/31611/>\<address>/
 |---|---|---|
 | `PylonFlashEngine` | `0xa1780be8f3c6e07714F51e5063839D6a6c61EE0b` | **match** (Sourcify, job `916db073-…`) |
 | `PylonReserve` | `0xAC8239Ca9eE97c7aB044447063aC77ddC4E8Bb31` | **match** (Sourcify, job `a34429c8-…`) |
-| `PylonPosition` (template) | `0xe22fB3036840d41A96612BA1686EBeaCe1b7141D` | **not verified** — see below |
+| `PylonPosition` (template) | `0xe22fB3036840d41A96612BA1686EBeaCe1b7141D` | **match** (Sourcify, job `1f975c71-…`, runtime bytecode) |
 
-## What "unverified" means here — and the evidence we do have
+## All three contracts verify now
+
+The earlier `no_match` had nothing to do with settings or bytecode — it was the **module set**.
+Foundry compiles the whole project (38 source units, including `test/` and `script/`) in one
+via_ir pipeline; reproducing the deployment therefore requires the same input. A minimal
+dependency-closed input (8 files) produces a different — though valid — bytecode, and that is
+what Sourcify's module-graph compilation kept producing. The full 38-unit input reproduces the
+on-chain bytecode byte-for-byte (24,258 bytes, `keccak` of it matches the on-chain code
+`0x60806040…becc55f00`), and Sourcify accepts it:
+
+```
+POST /v2/verify/31611/0xe22fB3036840d41A96612BA1686EBeaCe1b7141D
+{ "stdJsonInput": <docs/verification/PylonPosition-standard-json.json>,
+  "compilerVersion": "0.8.24+commit.e11b9ed9",
+  "contractIdentifier": "src/PylonPosition.sol:PylonPosition" }
+→ match: match · runtimeMatch: match
+```
+
+`docs/verification/PylonPosition-standard-json.json` is that exact input (full source units,
+trimmed only for `outputSelection` size). Explorer UIs with a "Standard JSON" tab (e.g. the Mezo
+Blockscout) accept the same file if Sourcify-style verification is unavailable.
+
+## How the earlier no_match was diagnosed — and why it misled us
+
+
 
 The deployed template's runtime bytecode is **byte-identical** to the local build from the
 current source (`contracts/out/PylonPosition.sol/PylonPosition.json`, ERC-1167-ancestor clone
