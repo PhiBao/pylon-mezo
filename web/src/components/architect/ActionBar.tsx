@@ -18,6 +18,30 @@ const STAGES: Array<{ key: ExecState['stage']; label: string }> = [
 ]
 
 /**
+ * One line that says *why* the current stage is taking time, so "Executing…" never reads as
+ * unexplained waiting. Keyed to the broadcast route because the signing and broadcasting legs
+ * are different machinery depending on who sends the transaction.
+ */
+function explainStage(stage: ExecState['stage'], route: BroadcastRoute): string | null {
+  switch (stage) {
+    case 'preparing':
+      return 'Simulating the move on chain to size the quote and the SortedTroves hints before anything is signed.'
+    case 'signing':
+      return route === 'engine'
+        ? 'The engine relay is signing the Mezo ballot on your behalf — nothing is sent until you approve.'
+        : 'Your wallet is being asked to sign the Mezo trove ballot. It will ask again at Broadcast.'
+    case 'broadcasting':
+      return route === 'engine'
+        ? 'The engine broadcasts one atomic transaction: flash venue → swap venue → trove update.'
+        : 'Your wallet broadcasts the transaction to the Mezo network.'
+    case 'confirming':
+      return 'Waiting for the block to land and the receipt to resolve.'
+    default:
+      return null
+  }
+}
+
+/**
  * Single primary action plus the broadcast-route switch and a transaction lifecycle strip.
  * Anything that can go wrong is stated before the button, never after: guards render above it and
  * `disabledReason` explains the blocked state in the same place.
@@ -120,6 +144,10 @@ export function ActionBar({
           </div>
 
           {state.label ? <span className="figure text-label text-ink-3">{state.label}</span> : null}
+
+          {busy && explainStage(state.stage, route) ? (
+            <span className="text-meta text-ink-2">{explainStage(state.stage, route)}</span>
+          ) : null}
 
           {state.hash ? <HashLink hash={state.hash} label={state.stage === 'confirmed' ? 'tx' : 'pending'} /> : null}
 

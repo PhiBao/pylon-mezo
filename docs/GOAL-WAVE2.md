@@ -16,7 +16,7 @@ criteria (**UX 10%**, **Technical 20%**) closed out as far as they can go withou
       All five wallets completed; receipts `status = 1`. (users 2/3/5 needed one hint-race retry.)
 - [x] `docs/USERS.md` filled with position addresses and create/open/loop/shield tx links.
 - [x] Five positions verified readable on-chain (engine isPosition, reserve registered, trove active).
-- [ ] Evidence linked from the submission (Wave 2 form + SUBMISSION.md).
+- [x] Evidence linked from the submission (SUBMISSION.md + WAVE2.md form answers).
 
 ### Technical (20%)
 
@@ -29,15 +29,17 @@ criteria (**UX 10%**, **Technical 20%**) closed out as far as they can go withou
       (deployed bytecode ~395 B off local build, identical ABI/selectors) — not claimed.
 - [x] Legacy v5 position left on its own engine; its reserve loan settled and depositor shares
       withdrawn; v6 deployment is the live one.
-- [ ] Commit + push docs/USERS.md and the Wave 2 updates; confirm Vercel + Fly serve v6 config.
-- [ ] Deployment record, README, submission updated to v6 with the verification status stated
-      exactly (partially done — final pass after the users run).
+- [x] Commit + push docs/USERS.md and the Wave 2 updates; confirm Vercel + Fly serve v6 config.
+      CI run 42117643249 green (server 42s, contracts 52s, web 1m22s).
+- [x] Deployment record, README, submission updated to v6 with the verification status stated
+      exactly (engine + reserve Sourcify-matched; template recorded unverified).
 
 ### User experience (10%)
 
 - [x] Empty-architect start panel (three steps, "Use my wallet's trove", "Pick the cheapest").
 - [x] Per-mode explanation line; wrong-network auto-switch; no 390px overflow; radar readout height.
-- [ ] Final pass on async labels (quote/signing states).
+- [x] Final pass on async labels — each busy stage (Prepare / Sign / Broadcast / Confirm) now carries
+      a one-line why, keyed to engine relay vs self-broadcast.
 - [ ] One more UX screenshot set for the deck if anything changes.
 
 ### Explicitly out of scope (and why)
