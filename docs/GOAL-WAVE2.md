@@ -1,61 +1,65 @@
 # Wave 2 goal
 
-**Objective:** raise the two lowest scoring criteria — **User Experience (10%)** and **Technical
-Implementation (20%)** — before the Wave 2 deadline (Nov 15), without a mainnet trove.
-
-## Why these two
-
-The Wave 1 feedback is explicit: deep Mezo composition, but "run the flows on mainnet and with
-outside users" and "no clear security flaws". The first is a funding constraint; the second and the
-usability gap are not. Technical also covers what a judge can inspect: tests, CI, verification,
-deployed code.
+**Objective:** land everything we can before the Wave 2 deadline (Nov 15, submission window closes
+Nov 20) — the five outside-user wallets running the real flow on the hardened v6 generation, the
+evidence documented in `docs/USERS.md` and folded into the submission, and the two lowest-scoring
+criteria (**UX 10%**, **Technical 20%**) closed out as far as they can go without mainnet capital.
 
 ## Definition of done
 
-### User experience
+### Outside users (the judge's "outside users" point)
 
-- [x] The empty architect teaches the three-step flow instead of saying "no trove selected".
-- [x] One-click ways in: "Use my wallet's trove" and "Pick the cheapest to redeem".
-- [x] Each mode (Loop / Unwind / Exit / Shield) explains itself in one visible line.
-- [x] The wrong-network state is visible and fixable from the header (auto-switch + button).
-- [x] Mobile: no horizontal overflow at 390px (scrollWidth 390 = innerWidth).
-- [ ] Every async state says what is happening and why — mostly there; worth a final pass on the
-      quote/signing states.
+- [x] Five wallets generated, keys at `~/.pylon-demo/users.json` (0600, outside the repo).
+- [x] All five funded from the Mezo faucet (0.05 BTC each).
+- [x] Run `contracts/script/run-users.sh`: createPosition → openTrove (0.045 BTC / 2,000 MUSD) →
+      setShield(170→185) → one flash loop (0.0005 BTC) per wallet on the v6 engine.
+      All five wallets completed; receipts `status = 1`. (users 2/3/5 needed one hint-race retry.)
+- [x] `docs/USERS.md` filled with position addresses and create/open/loop/shield tx links.
+- [x] Five positions verified readable on-chain (engine isPosition, reserve registered, trove active).
+- [ ] Evidence linked from the submission (Wave 2 form + SUBMISSION.md).
 
-### Technical
+### Technical (20%)
 
-- [x] CI on every push: Foundry tests, Rust tests, web typecheck + build — green in 1m56s
-      (run 41436868671).
-- [x] Relayed executions are recorded in the proof ledger (kind, note, amounts, block, gas).
-- [x] Fuzz tests for reserve shares and fee rounding; 51 Foundry tests.
-- [~] Contracts verified on the Mezo explorers — **blocked**: the deployed generation predates the
-      round-2 fixes, so Sourcify recompiles to different bytecode. Verification belongs to the new
-      generation deploy.
-- [ ] Deployment record and README state exactly which generation runs which fixes — partially: the
-      README says the deployed generation predates the fixes; it needs the new addresses once
-      deployed.
+- [x] CI on every push — Foundry tests, Rust tests, web typecheck + build — green (run 41436868671).
+- [x] Relayed executions recorded in the proof ledger.
+- [x] Fuzz tests for reserve shares and fee rounding; **52 Foundry tests**, 9 Rust.
+- [x] Hardened v6 generation deployed: engine `0xa1780be8…`, reserve `0xAC8239Ca…`,
+      template `0xe22fB303…`; reserve seeded with 1,000 MUSD; wiring verified.
+- [x] Sourcify: **engine and reserve match** the round-2 source. Template recorded as unverified
+      (deployed bytecode ~395 B off local build, identical ABI/selectors) — not claimed.
+- [x] Legacy v5 position left on its own engine; its reserve loan settled and depositor shares
+      withdrawn; v6 deployment is the live one.
+- [ ] Commit + push docs/USERS.md and the Wave 2 updates; confirm Vercel + Fly serve v6 config.
+- [ ] Deployment record, README, submission updated to v6 with the verification status stated
+      exactly (partially done — final pass after the users run).
 
-### Not in this goal
+### User experience (10%)
 
-- A new mainnet trove (needs ~0.037 BTC locked; documented as the remaining integration gap).
-- A new contract generation migration (requires settling the live position first; scoped separately).
+- [x] Empty-architect start panel (three steps, "Use my wallet's trove", "Pick the cheapest").
+- [x] Per-mode explanation line; wrong-network auto-switch; no 390px overflow; radar readout height.
+- [ ] Final pass on async labels (quote/signing states).
+- [ ] One more UX screenshot set for the deck if anything changes.
+
+### Explicitly out of scope (and why)
+
+- A mainnet trove — needs ~0.037 BTC locked in a new trove; documented as the remaining gap.
+- Re-cutting the demo video — single 1:48 cut; template machine is gone.
+- Re-verifying the position template on Sourcify — blocked on understanding the ~395 B delta; not
+  claimed anywhere.
 
 ## Evidence
 
-- CI: run **41436868671** — success (contracts, server, web).
-- Live terminal: `START HERE`, the three steps, `PICK THE CHEAPEST` and the per-mode line render at
-  1600px; no horizontal overflow at 390px.
-- Cold start: Fly suspend → `/health` 1.24 s, `/api/v1/radar` 1.09 s from suspended.
-- Tests: 51 Foundry, 9 Rust.
+- CI: run **41436868671** — success.
+- Tests: **52 Foundry**, 9 Rust.
+- v6 wiring + seed: `engine.reserve`, `reserve.engine`, `engine.positionImplementation` all match;
+  reserve assets 1,000 MUSD @ 1.0000 share price.
+- Sourcify match IDs: engine `916db073-…`, reserve `a34429c8-…` (both `match: match`).
+- Fly scale-to-zero with suspend: cold `/health` ~1.2 s.
+- Vercel production: terminal serves the v6 fallback.
 
-## Open items
+## Status log
 
-1. ~~Deploy the hardened generation (testnet)~~ — **done**: v6 engine `0xa1780be8…`, reserve
-   `0xAC8239Ca…`, template `0xe22fB303…`. The old reserve loan was settled, its depositor capital
-   withdrawn, and 1,000 MUSD seeded into the v6 reserve. The v5 position remains on its own engine
-   as legacy (positions are bound to the engine that created them).    Verification: **engine and reserve match on Sourcify**; the position template's deployed
-   bytecode differs from the local build by ~395 bytes (all 31 selectors present), so it is recorded
-   as unverified rather than claimed. Next: run the five outside wallets.
-2. Outside testnet users (5–10 wallets) with tx links — the judge's "outside users" point, achievable
-   without mainnet capital.
-3. A final pass on async labels (quote/signing) and one more UX screenshot set for the deck.
+- v6 deployed; migration of the v5 reserve loan + shares done (332.18 MUSD settled, 1,007.6 MUSD
+  withdrawn with ~100 left for another shareholder).
+- Faucet: 5/5 wallets funded (0.05 BTC each), all five ran the full flow on v6 (receipts status=1).
+  Three needed a hint-race retry on openTrove. Evidence in `docs/USERS.md`.

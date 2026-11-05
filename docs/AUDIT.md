@@ -4,7 +4,7 @@
 > plus a fresh boundary pass — added **10 findings (4 high, 3 medium, 2 low, 1 rejected)**. Seven are
 > fixed with regression tests (surplus bypass, relay ballot recipient, reserve handover, borrowing
 > capacity, Recovery Mode, reserve and implementation timelocks), two are accepted and documented,
-> and one was rejected with source evidence. The suite is now **51 Foundry tests**. Details:
+> and one was rejected with source evidence. The suite is now **52 Foundry tests**. Details:
 > **[`AUDIT-ROUND2.md`](AUDIT-ROUND2.md)**. The round-1 report below is unchanged.
 
 **Target:** `PhiBao/pylon-mezo`, commits `840bd88` (audited snapshot) and the working tree that followed

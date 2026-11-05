@@ -95,8 +95,12 @@ the x402 endpoint also serve Track 2 — Access and Distribution.
 
 **Testnet, live and operating** — `PylonFlashEngine` `0xa1780be8f3c6e07714F51e5063839D6a6c61EE0b`,
 `PylonReserve` `0xAC8239Ca9eE97c7aB044447063aC77ddC4E8Bb31`, `PylonPosition` template
-`0xe22fB3036840d41A96612BA1686EBeaCe1b7141D`, a live shielded position
-`0x34c4Bd9cf1C84A281A33D07aC272b6570EA20326`. On the audited generation: the **position-mode flash loop**
+`0xe22fB3036840d41A96612BA1686EBeaCe1b7141D`. Engine and reserve are **verified on Sourcify**
+against the round-2 source; the template's deployed bytecode differs from the local build by
+~395 bytes (identical ABI) and is recorded unverified, not claimed. Five faucet-funded **outside
+wallets ran the full flow on v6** — create, trove (0.045 BTC / 2,000 MUSD), shield, flash loop —
+with every transaction linked in [`docs/USERS.md`](docs/USERS.md). On the previous generation: the
+**position-mode flash loop**
 (`0xc1517166…`), the **position-mode unwind** (`0x4a2d139a…`), a **live shield loan** of 332.18 MUSD with
 2.70 MUSD of fees earned and a rising share price (1.002442), the claim enforced in code
 (`0xa06fe405`), and an **autonomous keeper defence** (`0x456e815b…`).
@@ -110,7 +114,7 @@ the x402 endpoint also serve Track 2 — Access and Distribution.
 Solidity (math, access control, economics, execution trace, invariants, periphery, first principles,
 asymmetry, boundaries, numerical gaps, trust gaps, flow gaps) plus a boundary-first review of the Rust
 service, HTTP surface, x402 gateway, keeper and terminal. **35 findings (5 high, 12 medium, 13 low, 5
-informational); 32 are fixed, each with a regression test** (51 contract tests today, up from 19).
+informational); 32 are fixed, each with a regression test** (52 contract tests today, up from 19).
 A second round (Nov 2026) added 10 findings — 4 high, 3 medium, 2 low, 1 rejected — of which 7 are
 fixed and 2 accepted: see `docs/AUDIT-ROUND2.md`. Two of the
 high findings were latent defects that had made the position-mode flash legs *impossible* to execute

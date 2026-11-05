@@ -298,7 +298,7 @@ Clone with the dependencies (`forge-std` and `openzeppelin-contracts` are pinned
 
 ```bash
 git clone --recurse-submodules https://github.com/PhiBao/pylon-mezo.git
-cd pylon-mezo/contracts && forge test     # 51 tests
+cd pylon-mezo/contracts && forge test     # 52 tests
 cd ../server && cargo test                # 9 tests
 cd ../web && pnpm install && pnpm typecheck
 ```
@@ -559,7 +559,7 @@ A second round in November 2026 (external hunter report plus a fresh boundary re
 findings — 4 high, 3 medium, 2 low, 1 rejected — of which 7 are fixed and 2 accepted**: a surplus
 path that bypassed an open reserve loan, a relay ballot bound to the wrong recipient, an engine
 reserve handover that could strand live loans, borrowing-capacity and Recovery Mode guards, and
-timelocks on reserve/implementation admin. The suite is now **51 Foundry tests**.
+timelocks on reserve/implementation admin. The suite is now **52 Foundry tests**.
 
 Full report, proofs and the deployment decisions: **[`docs/AUDIT.md`](docs/AUDIT.md)** and
 **[`docs/AUDIT-ROUND2.md`](docs/AUDIT-ROUND2.md)**.
