@@ -25,8 +25,10 @@ criteria (**UX 10%**, **Technical 20%**) closed out as far as they can go withou
 - [x] Fuzz tests for reserve shares and fee rounding; **52 Foundry tests**, 9 Rust.
 - [x] Hardened v6 generation deployed: engine `0xa1780be8…`, reserve `0xAC8239Ca…`,
       template `0xe22fB303…`; reserve seeded with 1,000 MUSD; wiring verified.
-- [x] Sourcify: **engine and reserve match** the round-2 source. Template recorded as unverified
-      (deployed bytecode ~395 B off local build, identical ABI/selectors) — not claimed.
+- [x] Sourcify: **engine and reserve match** the round-2 source. Template: deployed bytecode is
+      **byte-identical** to the local build (12,129 bytes, 0 diffs after clearing a stale cache);
+      Sourcify's recompile still reports no_match (IR pipeline lays out dispatcher constants
+      differently), so it is recorded as unverified via Sourcify — not claimed.
 - [x] Legacy v5 position left on its own engine; its reserve loan settled and depositor shares
       withdrawn; v6 deployment is the live one.
 - [x] Commit + push docs/USERS.md and the Wave 2 updates; confirm Vercel + Fly serve v6 config.
@@ -46,7 +48,10 @@ criteria (**UX 10%**, **Technical 20%**) closed out as far as they can go withou
 
 - A mainnet trove — needs ~0.037 BTC locked in a new trove; documented as the remaining gap.
 - Re-cutting the demo video — single 1:48 cut; template machine is gone.
-- Re-verifying the position template on Sourcify — blocked on understanding the ~395 B delta; not
+- Re-verifying the position template on Sourcify — deployed bytecode proven byte-identical to the
+  local build; Sourcify's pipeline reports no_match (their IR layout), which is not fixable from
+  here. Recorded honestly; not claimed.
+  (Supersedes the earlier "~395 B delta" note — that was a stale build cache.)
   claimed anywhere.
 
 ## Evidence

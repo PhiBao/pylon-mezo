@@ -96,8 +96,9 @@ the x402 endpoint also serve Track 2 — Access and Distribution.
 **Testnet, live and operating** — `PylonFlashEngine` `0xa1780be8f3c6e07714F51e5063839D6a6c61EE0b`,
 `PylonReserve` `0xAC8239Ca9eE97c7aB044447063aC77ddC4E8Bb31`, `PylonPosition` template
 `0xe22fB3036840d41A96612BA1686EBeaCe1b7141D`. Engine and reserve are **verified on Sourcify**
-against the round-2 source; the template's deployed bytecode differs from the local build by
-~395 bytes (identical ABI) and is recorded unverified, not claimed. Five faucet-funded **outside
+against the round-2 source; the template is byte-identical to the local build (12,129 bytes,
+0 diffs after clearing a stale cache); Sourcify's recompile still reports no_match (IR pipeline
+layout), so it is recorded unverified via Sourcify rather than claimed. Five faucet-funded **outside
 wallets ran the full flow on v6** — create, trove (0.045 BTC / 2,000 MUSD), shield, flash loop —
 with every transaction linked in [`docs/USERS.md`](docs/USERS.md). On the previous generation: the
 **position-mode flash loop**
