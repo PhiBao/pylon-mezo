@@ -47,6 +47,24 @@ impl Rpc {
         }
     }
 
+    /// Raw pass-through for the browser's JSON-RPC traffic (nonce reads, estimation). The
+    /// upstream node answers browsers inconsistently, so the terminal can point its viem
+    /// client at `/api/v1/rpc` and reach Mezo through this service instead. Bytes in, bytes
+    /// out — including JSON-RPC batches.
+    pub async fn forward_raw(&self, body: axum::body::Bytes) -> Result<(u16, String)> {
+        let response = self
+            .client
+            .post(&self.url)
+            .header("content-type", "application/json")
+            .body(body)
+            .send()
+            .await
+            .context("rpc proxy send")?;
+        let status = response.status().as_u16();
+        let text = response.text().await.context("rpc proxy read")?;
+        Ok((status, text))
+    }
+
     async fn request(&self, method: &str, params: Value) -> Result<Value> {
         let body = json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params});
         let mut last_error = None;

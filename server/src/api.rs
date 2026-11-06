@@ -51,9 +51,43 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/execute/loop", post(execute_loop))
         .route("/api/v1/execute/unwind", post(execute_unwind))
         .route("/api/v1/execute/exit", post(execute_exit))
+        .route("/api/v1/rpc", post(rpc_passthrough))
         .route("/api/v1/x402/trove-report/:address", get(x402_report).post(x402_report))
         .layer(CorsLayer::new().allow_origin(Any).allow_headers(Any).allow_methods(Any))
         .with_state(state)
+}
+
+/// Generic JSON-RPC pass-through: the browser sends Mezo RPC calls here when the node answers
+/// browsers inconsistently. Raw bytes both ways, so JSON-RPC batches work too. Read-limited per
+/// IP; nothing is interpreted or stored.
+async fn rpc_passthrough(
+    State(state): State<AppState>,
+    ConnectInfo(peer): ConnectInfo<std::net::SocketAddr>,
+    body: axum::body::Bytes,
+) -> axum::response::Response {
+    if !state.read_limiter.allow(peer.ip()) {
+        return (
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(serde_json::json!({ "error": "rate limited" })),
+        )
+            .into_response();
+    }
+    match state.mezo.rpc.forward_raw(body).await {
+        Ok((status, text)) => (
+            StatusCode::from_u16(status).unwrap_or(StatusCode::BAD_GATEWAY),
+            [("content-type", "application/json")],
+            text,
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::BAD_GATEWAY,
+            Json(serde_json::json!({
+                "jsonrpc": "2.0",
+                "error": { "code": -32603, "message": e.to_string() },
+            })),
+        )
+            .into_response(),
+    }
 }
 
 async fn health(State(state): State<AppState>) -> impl IntoResponse {

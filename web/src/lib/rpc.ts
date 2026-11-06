@@ -9,7 +9,8 @@
  *      view functions — the exact integer maths that runs inside the transaction.
  */
 
-import { createPublicClient, http, type Address, type PublicClient } from 'viem'
+import { createPublicClient, fallback, http, type Address, type PublicClient, type Transport } from 'viem'
+import { API_BASE, API_ENABLED } from './api'
 import {
   borrowerOpsAbi,
   erc20Abi,
@@ -43,9 +44,18 @@ export const readFlashMusdReserve = async (): Promise<bigint> => {
   return reserves.musd
 }
 
+// The Mezo public RPC answers some browser traffic with 403s, so reads go through the engine
+// service's JSON-RPC pass-through first and fall back to the node directly (the "no backend"
+// story). Both legs are stock viem transports; if the engine is down, viem retries on the next.
+const mezoTransports: Transport[] = []
+if (API_ENABLED) {
+  mezoTransports.push(http(`${API_BASE}/api/v1/rpc`, { batch: true, retryCount: 2, timeout: 20_000 }))
+}
+mezoTransports.push(http(RPC_URL, { batch: true, retryCount: 2, timeout: 15_000 }))
+
 export const publicClient: PublicClient = createPublicClient({
   chain: ACTIVE_CHAIN,
-  transport: http(RPC_URL, { batch: true, retryCount: 2, timeout: 15_000 }),
+  transport: mezoTransports.length > 1 ? fallback(mezoTransports, { rank: false }) : mezoTransports[0]!,
 })
 
 export class RpcReadError extends Error {
