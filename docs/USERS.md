@@ -41,3 +41,19 @@ loop of 0.0005 BTC.
 
 Keys are not committed. The five wallets are public testnet actors whose addresses, positions and
 transactions are all independently verifiable on the explorer.
+
+### Demo recording (Nov 6) — one outside user on camera
+
+The Wave 2 walkthrough records user1 driving this position on the live terminal:
+
+- **Relay authorisation:** user1 signed `setExecutor(0x3bEe06fA351E66e298eF4DDcbE6052770775a93e)`
+  so the hosted engine relay can execute flash operations for the position —
+  tx `0x0d72a5203c910e97bf8679013204ece18b6f82414c9e4cc037683f411a8e96e0`. The owner can revoke it
+  at any time with `setExecutor(address(0))`, and it never grants collateral withdrawal.
+- **Two relayed loops on camera:** 0.001 BTC each, confirmed on Mezo Testnet:
+  [`0xe51075996c33d1b39dc44ede50f74363e59d266323d8e5613a0d7d88520571d1`](https://explorer.test.mezo.org/tx/0xe51075996c33d1b39dc44ede50f74363e59d266323d8e5613a0d7d88520571d1)
+  and
+  [`0x6302e779b2dfeb89f5bd12f8b20878e6bd6b295ce0e2358b8b7d24fd09fbcc77`](https://explorer.test.mezo.org/tx/0x6302e779b2dfeb89f5bd12f8b20878e6bd6b295ce0e2358b8b7d24fd09fbcc77),
+  both also in the engine's proof ledger.
+- **Position after the recording:** 0.0475 BTC collateral, 2,399.24 MUSD debt, **150.9% ICR** —
+  just above Mezo's 150% CCR line, which the terminal shows as a live warning on the next loop.

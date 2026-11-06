@@ -735,6 +735,14 @@ struct ExitRelay {
     deadline: Option<u64>,
 }
 
+/// Empty SortedTroves hints: the position resolves them on chain, in the execution block.
+fn empty_hints() -> crate::mezo::Hints {
+    crate::mezo::Hints {
+        upper: "0x0000000000000000000000000000000000000000".into(),
+        lower: "0x0000000000000000000000000000000000000000".into(),
+    }
+}
+
 fn relay_guard(state: &AppState, peer: std::net::SocketAddr) -> Option<axum::response::Response> {
     if !state.config.allow_relay {
         return Some(
@@ -906,10 +914,13 @@ async fn execute_loop(
     };
     if state.mezo.is_position(owner).await.unwrap_or(false) {
         // A position is an EIP-1167 clone whose owner authorises the engine (`canExecute`), so the
-        // relay key drives it directly — no EIP-712 ballot exists for a contract trove.
+        // relay key drives it directly — no EIP-712 ballot exists for a contract trove. Hints are
+        // left empty on purpose: the position resolves them inside the transaction, against the
+        // block the flash executes in. Hints computed here are one block stale and
+        // SortedTroves.reInsert rejects them on a moving ICR.
         let calldata = state
             .mezo
-            .loop_position_calldata(owner, debt, coll_add, &hints, min_post_icr, deadline);
+            .loop_position_calldata(owner, debt, coll_add, &empty_hints(), min_post_icr, deadline);
         return relay_response(&state, calldata, Some(relay_log)).await;
     }
     let calldata = state.mezo.loop_calldata(
@@ -978,9 +989,10 @@ async fn execute_unwind(
         btc: coll_out.to_string(),
     };
     if state.mezo.is_position(owner).await.unwrap_or(false) {
+        // Same as the loop: on-chain hint resolution is the only version that cannot go stale.
         let calldata = state
             .mezo
-            .unwind_position_calldata(owner, repay, coll_out, &hints, min_post_icr, deadline);
+            .unwind_position_calldata(owner, repay, coll_out, &empty_hints(), min_post_icr, deadline);
         return relay_response(&state, calldata, Some(relay_log)).await;
     }
     let calldata = state

@@ -1,0 +1,41 @@
+{
+  "name": "pylon-wave2",
+  "output": "out/pylon-wave2.mp4",
+  "width": 1920,
+  "height": 1080,
+  "fps": 30,
+  "voice": "en-US-GuyNeural",
+  "rate": "-4%",
+  "volume": "+0%",
+  "pad": 0.45,
+  "trim": 0.6,
+  "crf": 20,
+  "preset": "medium",
+  "burn_subtitles": true,
+  "loudness": "I=-16:TP=-1.5:LRA=11",
+  "subtitle_style": "FontName=DejaVu Sans,FontSize=30,PrimaryColour=&HFFFFFF,OutlineColour=&H80000000,BorderStyle=1,Outline=2,Shadow=1,MarginV=46,PlayResX=1920,PlayResY=1080",
+  "theme": {
+    "bg": "#0a0a0f",
+    "accent1": "#f5b83d",
+    "accent2": "#34d399",
+    "accent3": "#f87171",
+    "ink": "#ece9e2",
+    "muted": "#8f94a3",
+    "faint": "#6a7080",
+    "hi": "#f87171",
+    "hi2": "#34d399",
+    "subc": "#f5b83d",
+    "shade": "rgba(0,0,0,.32)"
+  },
+  "branding": {
+    "name": "PYLON",
+    "tagline": "THE REDEMPTION TERMINAL",
+    "sub": "Non-custodial flash moves for Mezo troves",
+    "note": "Live on Mezo Testnet · chain 31611",
+    "meta": "MEZO · THE REDEMPTION TERMINAL",
+    "kicker": "MEZO · THE REDEMPTION TERMINAL",
+    "headline": "<b>The queue decides whose collateral pays.</b><br><i>Pylon shows you your place in it.</i>",
+    "links": "pylon-mezo.vercel.app · github.com/PhiBao/pylon-mezo",
+    "footnote": "Live · amounts are test tokens · pylon-mezo.vercel.app"
+  }
+}

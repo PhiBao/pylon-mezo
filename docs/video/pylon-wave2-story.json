@@ -1,0 +1,257 @@
+{
+  "voice": "en-US-GuyNeural",
+  "segments": [
+    {
+      "id": "s1_hook",
+      "text": "Borrow against Bitcoin on Mezo, and you do not get to choose when your collateral gets redeemed. The queue decides, worst collateral ratio first.",
+      "scene": {
+        "kind": "card",
+        "template": "title-left",
+        "vars": {
+          "kicker": "THE REDEMPTION TERMINAL FOR MEZO",
+          "name": "PYLON",
+          "tagline": "BORROW AGAINST BITCOIN WITHOUT THE QUEUE TAKING YOUR COLLATERAL UNASKED.",
+          "sub": "Flash loops, unwinds, exits and a shield reserve for Mezo troves.",
+          "note": "Live on Mezo Testnet. Every number on this screen is checkable on chain.",
+          "meta": "MEZO \u00b7 THE REDEMPTION TERMINAL \u00b7 CHAIN 31611"
+        }
+      }
+    },
+    {
+      "id": "s2_queue",
+      "text": "This is the live book on Mezo right now. Three hundred sixty eight troves and four hundred twenty nine million MUSD waiting behind the worst collateral ratios. The red ones are next in line.",
+      "scene": {
+        "kind": "page",
+        "src": "https://pylon-mezo.vercel.app/",
+        "zoom": 1.2,
+        "wait_for": [
+          "text=Redemption radar"
+        ],
+        "settle": 1.5,
+        "actions": [
+          {
+            "action": "move",
+            "x": 0.32,
+            "y": 0.3,
+            "dur": 0.8,
+            "after": 0.6
+          },
+          {
+            "action": "scrollTo",
+            "y": 0.33,
+            "dur": 1.6,
+            "after": 0.8
+          },
+          {
+            "action": "scrollTo",
+            "y": 0.0,
+            "dur": 1.6,
+            "after": 0.6
+          }
+        ]
+      }
+    },
+    {
+      "id": "s3_architect",
+      "text": "The architect is where the move happens. Loop, unwind, exit, or shield. One signature, one transaction.",
+      "scene": {
+        "kind": "page",
+        "src": "https://pylon-mezo.vercel.app/",
+        "zoom": 0.9,
+        "wait_for": [
+          "text=Position architect"
+        ],
+        "settle": 1.2,
+        "actions": [
+          {
+            "action": "hover",
+            "sel": "text=Loop",
+            "dur": 0.5,
+            "after": 0.4
+          },
+          {
+            "action": "hover",
+            "sel": "text=Unwind",
+            "dur": 0.5,
+            "after": 0.4
+          },
+          {
+            "action": "hover",
+            "sel": "text=Exit",
+            "dur": 0.5,
+            "after": 0.4
+          },
+          {
+            "action": "hover",
+            "sel": "text=Shield",
+            "dur": 0.5,
+            "after": 0.4
+          },
+          {
+            "action": "move",
+            "x": 0.8,
+            "y": 0.32,
+            "dur": 0.7,
+            "after": 0.3
+          }
+        ]
+      }
+    },
+    {
+      "id": "s4_position",
+      "text": "I am signed in as an outside user. This position opened this week, zero point zero four five Bitcoin of collateral, two thousand two hundred forty one MUSD of debt, one fifty four per cent collateralised.",
+      "scene": {
+        "kind": "page",
+        "src": "https://pylon-mezo.vercel.app/",
+        "zoom": 0.9,
+        "wallet": "inject",
+        "chain_id": "31611",
+        "wait_for": [
+          "text=Position architect"
+        ],
+        "settle": 1.2,
+        "actions": [
+          {
+            "action": "click",
+            "sel": "input[aria-label='Trove owner address']",
+            "after": 0.2
+          },
+          {
+            "action": "type",
+            "sel": "input[aria-label='Trove owner address']",
+            "text": "0x1027ac4af1b08a975a6101f5bb2b07b8f4c71833",
+            "cps": 60,
+            "after": 0.6
+          },
+          {
+            "action": "wait",
+            "sec": 5.5
+          },
+          {
+            "action": "move",
+            "x": 0.8,
+            "y": 0.42,
+            "dur": 0.8,
+            "after": 0.4
+          }
+        ]
+      }
+    },
+    {
+      "id": "s5_loop",
+      "text": "A milli-Bitcoin more collateral. The x-ray prices it before anything is signed: post-loop position, the fee, the slippage floor. Then one signature and one click. The flash borrows MUSD, the swap turns it into Bitcoin, the trove takes on the new debt, and the pool is repaid from the swap. All of it inside one transaction. If any leg fails, the whole move reverts.",
+      "scene": {
+        "kind": "page",
+        "src": "https://pylon-mezo.vercel.app/",
+        "zoom": 0.9,
+        "wallet": "inject",
+        "chain_id": "31611",
+        "wait_for": [
+          "text=Position architect"
+        ],
+        "settle": 1.2,
+        "actions": [
+          {
+            "action": "click",
+            "sel": "input[aria-label='Trove owner address']",
+            "after": 0.2
+          },
+          {
+            "action": "type",
+            "sel": "input[aria-label='Trove owner address']",
+            "text": "0x1027ac4af1b08a975a6101f5bb2b07b8f4c71833",
+            "cps": 60,
+            "after": 0.5
+          },
+          {
+            "action": "wait",
+            "sec": 5.0
+          },
+          {
+            "action": "click",
+            "sel": "text=0.0010 BTC",
+            "after": 3.0
+          },
+          {
+            "action": "move",
+            "x": 0.8,
+            "y": 0.6,
+            "dur": 0.7,
+            "after": 0.6
+          },
+          {
+            "action": "click",
+            "sel": "text=Engine relay",
+            "after": 0.8
+          },
+          {
+            "action": "click",
+            "sel": "text=Execute flash loop",
+            "after": 24.0
+          },
+          {
+            "action": "move",
+            "x": 0.8,
+            "y": 0.72,
+            "dur": 0.6,
+            "after": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "s6_tests",
+      "text": "Fifty two tests across the contracts, fuzzing on the reserve maths, green on every push.",
+      "scene": {
+        "kind": "term",
+        "title": "pylon - forge test",
+        "lines": [
+          {
+            "at": 0.4,
+            "type": "cmd",
+            "text": "forge test",
+            "cps": 14
+          },
+          {
+            "at": 2.1,
+            "text": "[PASS] test_sweep_recoversMUSDWhenNoReserveLoan()",
+            "cls": "dim"
+          },
+          {
+            "at": 2.9,
+            "text": "[PASS] test_unwindSigned_repaysDebtFromCollateralWithZeroWalletMusd()",
+            "cls": "dim"
+          },
+          {
+            "at": 3.7,
+            "text": "[PASS] test_unwindSigned_revertsWhenCeilingTooSmall()",
+            "cls": "dim"
+          },
+          {
+            "at": 4.5,
+            "text": "Suite result: ok. 52 passed; 0 failed; 0 skipped",
+            "cls": "white"
+          },
+          {
+            "at": 5.6,
+            "type": "rule"
+          },
+          {
+            "at": 6.7,
+            "text": "52 passed, 0 failed, green on every push",
+            "cls": "green",
+            "flash": "g"
+          }
+        ]
+      }
+    },
+    {
+      "id": "s7_close",
+      "text": "Everything in this walkthrough is live on testnet today. The queue, the architect, five outside users with receipts, contracts verified on Sourcify. Watch your place in line.",
+      "scene": {
+        "kind": "card",
+        "template": "close-left"
+      }
+    }
+  ]
+}

@@ -133,11 +133,15 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
   against chain 31612 (RPC-only, mainnet contract set, real mainnet reserve state). The header's
   network chip switches between the two bundles.
 * Execution path: the terminal connects an injected wallet, signs the trove ballot, and the hosted
-  engine relays it. The demo video shows a real relayed loop; production hides the recording-only
+  engine relays it. Both demo videos show a real relayed loop; production hides the recording-only
   demo-key control.
-* Executed through that path: **0xe198fb3b11160c2fd489c636da87e247d2d2c760d120c20fd54491a3c0b90861** —
-  a 0.0005 BTC loop relayed by the Fly engine, confirmed on Mezo Testnet and shown in the demo
-  video (`docs/video/pylon-demo.mp4`, from 0:38).
+* Executed through that path, on camera, for Wave 2:
+  **0xe51075996c33d1b39dc44ede50f74363e59d266323d8e5613a0d7d88520571d1** and
+  **0x6302e779b2dfeb89f5bd12f8b20878e6bd6b295ce0e2358b8b7d24fd09fbcc77** — 0.001 BTC loops
+  relayed by the Fly engine for an outside user's position
+  (`0x1027ac4a…1833`, owner `0x59CeF3…8A6B`), confirmed on Mezo Testnet and shown in
+  `docs/video/pylon-wave2.mp4` from 0:48. Wave 1's relayed loop:
+  `0xe198fb3b11160c2fd489c636da87e247d2d2c760d120c20fd54491a3c0b90861`.
 * Repository: **https://github.com/PhiBao/pylon-mezo** (public; full history, tests, deployment records
   for both chains, the audit report and the engineering log)
 * Mainnet contracts: engine `0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D`, reserve
@@ -146,8 +150,8 @@ later depositor's money — the live mainnet deposit demonstrates the fix. Repor
   [explorer.mezo.org](https://explorer.mezo.org)
 * Engine service (radar solver, keeper, x402): `cd server && cargo run --release -- serve` — the API the
   hosted terminal uses when it is reachable; `server/.env.mainnet.example` is the mainnet variant
-* Product deck: **`docs/deck/pylon-deck.pdf`** (10 slides) · deck copy: `docs/PITCH.md` · 2-minute pitch video: **`docs/video/pylon-demo.mp4`** (1:45, narrated, includes a live execution, subtitles +
-  sidecar `.srt`); the script and transaction index stay in `docs/DEMO_SCRIPT.md` · diagram set: `docs/diagrams/01-atomic-paths.png`, `02-redemption-queue.png`,
+* Product deck: **`docs/deck/pylon-deck.pdf`** (10 slides) · deck copy: `docs/PITCH.md` · 2-minute pitch video: **`docs/video/pylon-wave2.mp4`** (1:44, narrated, includes a live outside-user execution, subtitles +
+  sidecar `.srt`; Wave 1 cut at `docs/video/pylon-demo.mp4`); the script and transaction index stay in `docs/DEMO_SCRIPT.md` · diagram set: `docs/diagrams/01-atomic-paths.png`, `02-redemption-queue.png`,
   `03-system-map.png`
 * Mainnet readiness and the cost ladder: `docs/MAINNET-READINESS.md` · deploy and escape procedures:
   `docs/MAINNET-RUNBOOK.md`

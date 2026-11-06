@@ -402,9 +402,10 @@ With no engine service running the terminal still works: it reads Mezo Testnet d
 * **Recording aid (not shipped):** with `NEXT_PUBLIC_DEMO_SIGNER=1` the header offers a **Demo key**
   control that signs the same EIP-712 ballots locally, for recording when no wallet extension is
   available. Production builds do not set it, so the public terminal shows only **Connect**.
-* **Rendered walkthrough (1:45):** `docs/video/pylon-demo.mp4` — narrated, 1920×1080, subtitles burned
-  in, sidecar `docs/video/pylon-demo.srt`. Recorded against the live terminal with the engine
-  connected, and it contains a **real relayed execution** (`0xe198fb3b…b90861`). Scene-by-scene notes
+* **Rendered walkthroughs:** `docs/video/pylon-wave2.mp4` (1:44, current) and
+  `docs/video/pylon-demo.mp4` (1:45, Wave 1) — narrated, 1920×1080, subtitles burned in, sidecars
+  `.srt`. Both recorded against the live terminal and both contain a **real relayed execution**
+  (Wave 2: `0xe51075…71d1` and `0x6302e7…cc77`; Wave 1: `0xe198fb3b…b90861`). Scene-by-scene notes
   and the re-render source are in `docs/video/README.md`.
 
 ### What a judge should try first

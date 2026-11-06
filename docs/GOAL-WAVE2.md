@@ -46,10 +46,21 @@ criteria (**UX 10%**, **Technical 20%**) closed out as far as they can go withou
 ### Explicitly out of scope (and why)
 
 - A mainnet trove — needs ~0.037 BTC locked in a new trove; documented as the remaining gap.
-- Re-cutting the demo video — single 1:48 cut; template machine is gone.
+- Re-cutting the Wave 1 video — kept as recorded; the Wave 2 cut was produced with the same
+  `open-video-demo` toolkit and committed alongside it.
 - (Resolved Nov 2026) The position template verifies on Sourcify once the full 38-source
   compilation input — the one foundry used for the deploy — is submitted instead of the
   dependency-closed module set. See docs/verification/README.md.
+
+### Materials
+
+- [x] Wave 2 walkthrough rendered: `docs/video/pylon-wave2.mp4` (1:44, 1080p30, subtitles burned,
+      sidecar `.srt`) — an outside user executes a real flash loop on camera. Story + branding
+      committed as `docs/video/pylon-wave2-story.json` / `-config.json`.
+- [x] Gallery re-shot against the current terminal (cover, radar, x-ray, executed, mainnet) with the
+      injected outside-user wallet.
+- [x] README / SUBMISSION / PITCH / Wave 2 form answers updated with the video, the two relayed
+      recording loops, and the relay-authorisation detail.
 
 ## Evidence
 

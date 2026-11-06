@@ -1,0 +1,87 @@
+1
+00:00:00,100 --> 00:00:06,182
+Borrow against Bitcoin on Mezo, and you do not get to choose when your
+collateral gets redeemed.
+
+2
+00:00:06,131 --> 00:00:10,130
+The queue decides, worst collateral ratio first.
+
+3
+00:00:10,750 --> 00:00:13,968
+This is the live book on Mezo right now.
+
+4
+00:00:13,917 --> 00:00:21,091
+Three hundred sixty eight troves and four hundred twenty nine million
+MUSD waiting behind the worst collateral ratios.
+
+5
+00:00:21,091 --> 00:00:23,722
+The red ones are next in line.
+
+6
+00:00:24,330 --> 00:00:27,365
+The architect is where the move happens.
+
+7
+00:00:27,315 --> 00:00:30,740
+Loop, unwind, exit, or shield.
+
+8
+00:00:30,740 --> 00:00:33,852
+One signature, one transaction.
+
+9
+00:00:36,429 --> 00:00:39,451
+I am signed in as an outside user.
+
+10
+00:00:39,402 --> 00:00:49,805
+This position opened this week, zero point zero four five Bitcoin of
+collateral, two thousand two hundred forty one MUSD of debt, one fifty
+
+11
+00:00:50,420 --> 00:00:53,246
+A milli-Bitcoin more collateral.
+
+12
+00:00:53,197 --> 00:00:59,447
+The x-ray prices it before anything is signed: post-loop position, the
+fee, the slippage floor.
+
+13
+00:00:59,447 --> 00:01:02,338
+Then one signature and one click.
+
+14
+00:01:02,338 --> 00:01:09,954
+The flash borrows MUSD, the swap turns it into Bitcoin, the trove
+takes on the new debt, and the pool is repaid from the swap.
+
+15
+00:01:09,954 --> 00:01:12,805
+All of it inside one transaction.
+
+16
+00:01:12,805 --> 00:01:16,257
+If any leg fails, the whole move reverts.
+
+17
+00:01:24,310 --> 00:01:30,301
+Fifty two tests across the contracts, fuzzing on the reserve maths,
+green on every push.
+
+18
+00:01:30,859 --> 00:01:34,599
+Everything in this walkthrough is live on testnet today.
+
+19
+00:01:34,549 --> 00:01:40,916
+The queue, the architect, five outside users with receipts, contracts
+verified on Sourcify.
+
+20
+00:01:40,916 --> 00:01:43,207
+Watch your place in line.
+
