@@ -550,20 +550,55 @@ const positionCreatedEvent = {
   ],
 } as const
 
-/** Position addresses owned by `account`, discovered from the engine's creation logs. */
+/**
+ * Position addresses owned by `account`, discovered from the engine's creation logs. The Mezo RPC
+ * rejects eth_getLogs ranges wider than 9,999 blocks, so the scan is chunked from the engine's
+ * own deployment block (both chains carry `engineDeployBlock` in the deployment config). The scan
+ * covers at most the newest ~1.1M blocks (MAX_CHUNKS windows); positions created earlier than that
+ * are still usable — the wallet chip and the proof ledger link them, and a paste of the position
+ * address works regardless.
+ */
+const LOG_WINDOW = 9500n
+const MAX_CHUNKS = 120
+
 export async function findPositions(account: Address): Promise<Address[]> {
   try {
-    const logs = await publicClient.getLogs({
-      address: DEPLOYED.engine,
-      event: positionCreatedEvent,
-      args: { owner: account },
-      fromBlock: 0n,
-      toBlock: 'latest',
-    })
-    return logs
-      .map((log) => log.args.position)
-      .filter((value): value is Address => typeof value === 'string')
-  } catch {
+    const latest = await publicClient.getBlockNumber()
+    const floor = BigInt(DEPLOYED.engineDeployBlock ?? 0)
+    const windows: Array<[bigint, bigint]> = []
+    for (let from = floor; from <= latest; from += LOG_WINDOW) {
+      const to = from + LOG_WINDOW - 1n < latest ? from + LOG_WINDOW - 1n : latest
+      windows.push([from, to])
+    }
+    const capped = windows.slice(-MAX_CHUNKS)
+
+    const out: Address[] = []
+    const BATCH = 20
+    for (let i = 0; i < capped.length; i += BATCH) {
+      const batch = capped.slice(i, i + BATCH)
+      const results = await Promise.all(
+        batch.map(([fromBlock, toBlock]) =>
+          publicClient.getLogs({
+            address: DEPLOYED.engine,
+            event: positionCreatedEvent,
+            args: { owner: account },
+            fromBlock,
+            toBlock,
+          }),
+        ),
+      )
+      for (const logs of results) {
+        for (const log of logs) {
+          const position = log.args.position
+          if (typeof position === 'string') out.push(position)
+        }
+      }
+    }
+    // Newest creation first: the shield panel defaults to `discovered[0]`, and the
+    // most recently created position is almost always the one the user expects.
+    return [...new Set(out)].reverse()
+  } catch (error) {
+    console.warn('position discovery failed', error)
     return []
   }
 }

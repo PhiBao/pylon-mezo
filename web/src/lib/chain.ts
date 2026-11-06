@@ -77,6 +77,9 @@ export const MAINNET_DEPLOYED = {
   engine: getAddress('0x8DEa475605ac7a99ad28F0DD3537A93b2aCf655D'),
   reserve: getAddress('0x81175AaAC5Fa0873e64480502566Fe993bB88e62'),
   positionImplementation: getAddress('0x645174D655814839a85Bd80D2F54b35A7160465E'),
+  // Block the mainnet engine was created in (creation tx 0xc4481e02…). findPositions scans logs
+  // from here; the Mezo RPC caps eth_getLogs to 9,999 blocks per call.
+  engineDeployBlock: 12664206,
   musd: getAddress('0xdD468A1DDc392dcdbEf6db6e34E89AA338F9F186'),
   btc: getAddress('0x7b7C000000000000000000000000000000000000'),
   flashPool: getAddress('0x10906a9E9215939561597b4C8e4b98F93c02031A'),
@@ -109,6 +112,9 @@ export const TESTNET_DEPLOYED = {
   engine: getAddress('0xa1780be8f3c6e07714F51e5063839D6a6c61EE0b'),
   reserve: getAddress('0xAC8239Ca9eE97c7aB044447063aC77ddC4E8Bb31'),
   positionImplementation: getAddress('0xe22fB3036840d41A96612BA1686EBeaCe1b7141D'),
+  // Block the v6 engine was created in (creation tx 0xbefa6b65…, block 16,525,869). findPositions
+  // scans logs from here; the Mezo RPC caps eth_getLogs to 9,999 blocks per call.
+  engineDeployBlock: 16525869,
   musd: getAddress('0x118917a40FAF1CD7a13dB0Ef56C86De7973Ac503'),
   btc: getAddress('0x7b7C000000000000000000000000000000000000'),
   flashPool: getAddress('0x525F049A4494dA0a6c87E3C4df55f9929765Dc3e'),
